@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  background-color: #0f172a; /* Slate 900 */
+  color: #f8fafc; /* Slate 50 */
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom popup styling for Leaflet */
+.custom-popup .leaflet-popup-content-wrapper {
+  background-color: #1e293b;
+  color: #f8fafc;
+  border-radius: 0.75rem;
+  border: 1px solid #334155;
+}
+.custom-popup .leaflet-popup-tip {
+  background-color: #1e293b;
+}
+
+/* Radar pulse animation fixed to map */
+.clear-marker {
+  background: transparent;
+  border: none;
+}
+
+.radar-pulse-ring {
+  width: 120px;
+  height: 120px;
+  margin-left: -60px;
+  margin-top: -60px;
+  border-radius: 50%;
+  border: 4px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.2);
+  animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes radarPing {
+  0% { transform: scale(0); opacity: 0.8; }
+  100% { transform: scale(4); opacity: 0; }
+}
