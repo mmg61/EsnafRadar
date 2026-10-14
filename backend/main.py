@@ -16,9 +16,8 @@ app.add_middleware(
 def read_root():
     return {"message": "EsnafRadar API çalışıyor 🚀"}
 
-from routers import auth, discovery
+from routers import auth, discovery, leads
 
-# İleride eklenecek router'lar:
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(discovery.router, prefix="/api/discovery", tags=["Discovery"])
-# app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
+app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])

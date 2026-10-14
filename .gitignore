@@ -1,15 +1,38 @@
-# Backend
+# Proje Hafiza ve Dokumantasyon Dosyalari (GitHub Harici)
+GEMINI.md
+PROJECT_PLAN.md
+*.plan.md
+
+# Sistem ve Ortam Degiskenleri
+.env
+.env.*
+*.env
+*.env.local
+
+# Veritabani Dosyalari
+*.db
+*.sqlite
+*.sqlite3
+
+# Python / Backend
 backend/venv/
 backend/__pycache__/
 backend/*.db
 backend/.env
+backend/.pytest_cache/
+__pycache__/
+*.py[cod]
 
-# Frontend
+# Node / Frontend
 frontend/node_modules/
 frontend/dist/
 frontend/.env
 frontend/.env.*
+dist/
+node_modules/
 
-# OS
+# Isletim Sistemi ve IDE Dosyalari
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/

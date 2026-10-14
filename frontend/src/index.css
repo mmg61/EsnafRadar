@@ -44,3 +44,13 @@ body {
   0% { transform: scale(0); opacity: 0.8; }
   100% { transform: scale(4); opacity: 0; }
 }
+
+/* Harita sağ altındaki Leaflet / OSM yazısını gizle */
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+.custom-center-pin {
+  background: transparent;
+  border: none;
+}

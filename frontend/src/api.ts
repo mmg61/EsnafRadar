@@ -1,7 +1,7 @@
 export const API_URL = 'http://localhost:8000/api';
 
-export const scanMerchants = async (lat: number, lon: number, radius: number, token: string) => {
-  const response = await fetch(`${API_URL}/discovery/scan?lat=${lat}&lon=${lon}&radius=${radius}`, {
+export const scanMerchants = async (lat: number, lon: number, radius: number, token: string, category: string = 'all') => {
+  const response = await fetch(`${API_URL}/discovery/scan?lat=${lat}&lon=${lon}&radius=${radius}&category=${category}`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`
@@ -30,25 +30,158 @@ export const auditMerchant = async (osm_id: string, name: string, website: strin
   return response.json();
 };
 
-export const registerUser = async (email: string, password: string, fullName: string) => {
+export const registerUser = async (email: string, password: string, firstName: string, lastName: string, turnstileToken?: string) => {
     const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, full_name: fullName })
+        body: JSON.stringify({ 
+            email, 
+            password, 
+            first_name: firstName, 
+            last_name: lastName,
+            full_name: `${firstName} ${lastName}`.trim(),
+            turnstile_token: turnstileToken
+        })
     });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Kayıt başarısız oldu');
+    }
     return response.json();
 }
 
-export const loginUser = async (email: string, password: string) => {
+export const loginUser = async (email: string, password: string, turnstileToken?: string) => {
     const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);
+    if (turnstileToken) {
+        formData.append('client_secret', turnstileToken);
+    }
 
     const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData
     });
-    if (!response.ok) throw new Error('Giriş başarısız');
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Giriş başarısız');
+    }
+    return response.json();
+};
+
+export const forgotPassword = async (email: string, turnstileToken?: string) => {
+    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, turnstile_token: turnstileToken })
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Şifre sıfırlama talebi başarısız oldu.');
+    }
+    return response.json();
+};
+
+export const resetPassword = async (email: string, code: string, newPassword: string) => {
+    const response = await fetch(`${API_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, new_password: newPassword })
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Şifre güncellenemedi.');
+    }
+    return response.json();
+};
+
+export const getUserProfile = async (token: string) => {
+    const response = await fetch(`${API_URL}/auth/me`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Profil bilgisi alınamadı');
+    }
     return response.json();
 }
+
+export const updateUserProfile = async (data: { first_name?: string; last_name?: string; current_password?: string; new_password?: string }, token: string) => {
+    const response = await fetch(`${API_URL}/auth/me`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Profil güncellenemedi');
+    }
+    return response.json();
+}
+
+export const saveLead = async (leadData: any, token: string) => {
+  const response = await fetch(`${API_URL}/leads/save`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(leadData)
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Lead kaydedilemedi');
+  }
+  return response.json();
+};
+
+export const getSavedLeads = async (token: string) => {
+  const response = await fetch(`${API_URL}/leads`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Leadler alınamadı');
+  }
+  return response.json();
+};
+
+export const updateLeadStatus = async (leadId: number, status: string, token: string) => {
+  const response = await fetch(`${API_URL}/leads/${leadId}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ status })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Durum güncellenemedi');
+  }
+  return response.json();
+};
+
+export const deleteLead = async (leadId: number, token: string) => {
+  const response = await fetch(`${API_URL}/leads/${leadId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Lead silinemedi');
+  }
+  return true;
+};
