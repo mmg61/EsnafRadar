@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import database, models
+from routers import auth, discovery, leads
 
-app = FastAPI(title="EsnafRadar API", version="1.0.0")
+# Veritabanı tablolarını başlangıçta otomatik oluştur (yoksa)
+models.Base.metadata.create_all(bind=database.engine)
+
+app = FastAPI(title="EsnafRadar API", version="2.0.0")
 
 # CORS yapılandırması
 app.add_middleware(
@@ -14,9 +19,7 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "EsnafRadar API çalışıyor 🚀"}
-
-from routers import auth, discovery, leads
+    return {"message": "EsnafRadar API aktif", "status": "ok"}
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(discovery.router, prefix="/api/discovery", tags=["Discovery"])

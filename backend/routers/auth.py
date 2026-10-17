@@ -7,7 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import httpx
 from collections import defaultdict
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -28,9 +28,13 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
         return False, "Şifre en az bir rakam içermelidir."
     return True, ""
 
+TEST_TURNSTILE_SECRET = "1x0000000000000000000000000000000AA"
+_ip_register_history = defaultdict(list)
+
 async def verify_turnstile(token: str | None) -> bool:
     if not token:
-        return True
+        # Canlı ortam anahtarı tanımlıysa boş token kabul edilmez
+        return CLOUDFLARE_TURNSTILE_SECRET_KEY == TEST_TURNSTILE_SECRET
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             res = await client.post(
@@ -43,50 +47,85 @@ async def verify_turnstile(token: str | None) -> bool:
             result = res.json()
             return result.get("success", False)
     except Exception:
-        return True
+        return CLOUDFLARE_TURNSTILE_SECRET_KEY == TEST_TURNSTILE_SECRET
 
 @router.post("/register", response_model=schemas.UserResponse)
-async def register_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    # 1. Turnstile verification
-    if user.turnstile_token:
-        is_turnstile_valid = await verify_turnstile(user.turnstile_token)
-        if not is_turnstile_valid:
-            raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
+async def register_user(user: schemas.UserCreate, request: Request, db: Session = Depends(database.get_db)):
+    now = datetime.utcnow()
+    client_ip = request.client.host if request.client else "unknown"
 
-    # 2. Password strength validation
+    # 0. IP bazlı kayıt spam koruması (Son 10 dakikada en fazla 10 kayıt)
+    _ip_register_history[client_ip] = [t for t in _ip_register_history[client_ip] if (now - t).total_seconds() < 600]
+    if len(_ip_register_history[client_ip]) >= 10:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Çok fazla kayıt denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyiniz."
+        )
+
+    # 1. Turnstile doğrulaması
+    is_turnstile_valid = await verify_turnstile(user.turnstile_token)
+    if not is_turnstile_valid:
+        raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
+
+    # 2. Ad ve Soyad kontrolü
+    first_name_clean = (user.first_name or "").strip()
+    last_name_clean = (user.last_name or "").strip()
+    if not first_name_clean or not last_name_clean:
+        raise HTTPException(status_code=400, detail="Ad ve soyad alanları zorunludur.")
+
+    # 3. Şifre güvenlik kriterleri kontrolü
     is_strong, err_msg = validate_password_strength(user.password)
     if not is_strong:
         raise HTTPException(status_code=400, detail=err_msg)
 
-    # 3. Check existing user
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    # 4. E-posta normalizasyonu ve mükerrer kayıt kontrolü
+    email_clean = user.email.strip().lower()
+    db_user = db.query(models.User).filter(models.User.email == email_clean).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Bu e-posta adresi zaten kayıtlı.")
     
     hashed_password = auth.get_password_hash(user.password)
-    full_name = user.full_name or f"{user.first_name or ''} {user.last_name or ''}".strip()
+    full_name = f"{first_name_clean} {last_name_clean}".strip()
     new_user = models.User(
-        email=user.email,
+        email=email_clean,
         hashed_password=hashed_password,
-        first_name=user.first_name,
-        last_name=user.last_name,
+        first_name=first_name_clean,
+        last_name=last_name_clean,
         full_name=full_name,
         failed_login_attempts=0
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-    return new_user
+
+    _ip_register_history[client_ip].append(now)
+
+    # Kayıt sonrası doğrudan JWT erişim token'ı üret (çift Turnstile tüketimini önler)
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(
+        data={"sub": new_user.email}, expires_delta=access_token_expires
+    )
+
+    return {
+        "id": new_user.id,
+        "email": new_user.email,
+        "first_name": new_user.first_name,
+        "last_name": new_user.last_name,
+        "full_name": new_user.full_name,
+        "created_at": new_user.created_at,
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 @router.post("/login", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
-    # 0. Turnstile verification
-    if form_data.client_secret:
-        is_turnstile_valid = await verify_turnstile(form_data.client_secret)
-        if not is_turnstile_valid:
-            raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
+    # 0. Turnstile doğrulaması
+    is_turnstile_valid = await verify_turnstile(form_data.client_secret)
+    if not is_turnstile_valid:
+        raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
 
-    user = db.query(models.User).filter(models.User.email == form_data.username).first()
+    email_clean = form_data.username.strip().lower()
+    user = db.query(models.User).filter(models.User.email == email_clean).first()
     now = datetime.utcnow()
 
     # 1. Check if user is locked
@@ -243,14 +282,14 @@ _email_reset_history = defaultdict(list)
 @router.post("/forgot-password")
 async def forgot_password(
     req: schemas.ForgotPasswordRequest, 
-    request: Request, 
+    request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db)
 ):
     # 0. Turnstile bot koruması
-    if req.turnstile_token:
-        is_turnstile_valid = await verify_turnstile(req.turnstile_token)
-        if not is_turnstile_valid:
-            raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
+    is_turnstile_valid = await verify_turnstile(req.turnstile_token)
+    if not is_turnstile_valid:
+        raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
 
     now = datetime.utcnow()
     client_ip = request.client.host if request.client else "unknown"
@@ -286,7 +325,7 @@ async def forgot_password(
             )
 
     code = f"{random.randint(100000, 999999)}"
-    sent_via_smtp = False
+    has_smtp = bool(os.getenv("SMTP_HOST") and os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"))
 
     if user:
         user.reset_code = code
@@ -294,7 +333,10 @@ async def forgot_password(
         user.last_reset_request_at = now
         user.reset_code_attempts = 0
         db.commit()
-        sent_via_smtp = send_reset_email(user.email, code)
+        if has_smtp:
+            background_tasks.add_task(send_reset_email, user.email, code)
+        else:
+            send_reset_email(user.email, code)
 
     _ip_reset_history[client_ip].append(now)
     _email_reset_history[email_clean].append(now)
@@ -302,7 +344,7 @@ async def forgot_password(
     # Güvenlik standardı: E-postanın kayıtlı olup olmadığını açık etmemek için standart mesaj dönülür
     return {
         "message": "Şifre sıfırlama kodu kayıtlı e-posta adresinize gönderildi.",
-        "dev_code": code if not sent_via_smtp and user else None,
+        "dev_code": code if not has_smtp and user else None,
         "cooldown_seconds": 60
     }
 

@@ -14,20 +14,55 @@ export const scanMerchants = async (lat: number, lon: number, radius: number, to
   return response.json();
 };
 
-export const auditMerchant = async (osm_id: string, name: string, website: string | null, token: string) => {
+export const auditMerchant = async (
+  osm_id: string,
+  name: string,
+  website: string | null,
+  token: string,
+  category?: string,
+  force_refresh: boolean = false
+) => {
   const response = await fetch(`${API_URL}/discovery/audit`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ osm_id, name, website })
+    body: JSON.stringify({ osm_id, name, website, category, force_refresh })
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || 'Röntgen çekilemedi');
   }
   return response.json();
+};
+
+export const getScanHistory = async (token: string) => {
+  const response = await fetch(`${API_URL}/discovery/history`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Tarama geçmişi alınamadı');
+  }
+  return response.json();
+};
+
+export const deleteScanHistoryItem = async (scanId: number, token: string) => {
+  const response = await fetch(`${API_URL}/discovery/history/${scanId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Tarama kaydı silinemedi');
+  }
+  return true;
 };
 
 export const registerUser = async (email: string, password: string, firstName: string, lastName: string, turnstileToken?: string) => {
@@ -184,4 +219,97 @@ export const deleteLead = async (leadId: number, token: string) => {
     throw new Error(err.detail || 'Lead silinemedi');
   }
   return true;
+};
+
+export const addLeadNote = async (leadId: number, content: string, token: string) => {
+  const response = await fetch(`${API_URL}/leads/${leadId}/notes`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ content })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Not eklenemedi');
+  }
+  return response.json();
+};
+
+export const updateLeadNote = async (leadId: number, noteId: number, content: string, token: string) => {
+  const response = await fetch(`${API_URL}/leads/${leadId}/notes/${noteId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ content })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Not güncellenemedi');
+  }
+  return response.json();
+};
+
+export const deleteLeadNote = async (leadId: number, noteId: number, token: string) => {
+  const response = await fetch(`${API_URL}/leads/${leadId}/notes/${noteId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Not silinemedi');
+  }
+  return true;
+};
+
+export const logLeadOutreach = async (
+  leadId: number,
+  channel: string,
+  messageContent: string,
+  isAiGenerated: boolean,
+  token: string
+) => {
+  const response = await fetch(`${API_URL}/leads/${leadId}/outreach`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      channel,
+      message_content: messageContent,
+      is_ai_generated: isAiGenerated
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'İletişim kaydı oluşturulamadı');
+  }
+  return response.json();
+};
+
+export const exportLeadsCsv = async (token: string) => {
+  const response = await fetch(`${API_URL}/leads/export/csv`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    throw new Error('CSV dışa aktarımı başarısız oldu');
+  }
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `esnafradar_musteriler_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
 };

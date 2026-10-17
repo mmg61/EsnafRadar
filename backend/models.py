@@ -20,8 +20,8 @@ class User(Base):
     reset_code_attempts = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    saved_leads = relationship("SavedLead", back_populates="user")
-    scan_history = relationship("ScanHistory", back_populates="user")
+    saved_leads = relationship("SavedLead", back_populates="user", cascade="all, delete-orphan")
+    scan_history = relationship("ScanHistory", back_populates="user", cascade="all, delete-orphan")
 
 
 class Merchant(Base):
@@ -58,8 +58,8 @@ class SavedLead(Base):
 
     user = relationship("User", back_populates="saved_leads")
     merchant = relationship("Merchant", back_populates="saved_leads")
-    notes = relationship("LeadNote", back_populates="saved_lead")
-    outreach_logs = relationship("OutreachLog", back_populates="saved_lead")
+    notes = relationship("LeadNote", back_populates="saved_lead", cascade="all, delete-orphan", order_by="desc(LeadNote.created_at)")
+    outreach_logs = relationship("OutreachLog", back_populates="saved_lead", cascade="all, delete-orphan", order_by="desc(OutreachLog.sent_at)")
 
 
 class LeadNote(Base):
