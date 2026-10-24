@@ -16,6 +16,8 @@ export interface Merchant {
   phone?: string;
   email?: string;
   website?: string;
+  website_source?: string;
+  is_corporate_chain?: boolean;
   instagram?: string;
   opening_hours?: string;
   opportunity_badge?: string;
@@ -184,9 +186,12 @@ const MapRadar: React.FC<MapRadarProps> = ({ center, radius, merchants, isScanni
                       <a href={m.website.startsWith('http') ? m.website : `http://${m.website}`} target="_blank" rel="noreferrer" className="hover:underline">
                         🌐 {m.website.replace(/^https?:\/\//, '')}
                       </a>
+                      {m.is_corporate_chain && (
+                        <span className="ml-1 text-[10px] text-purple-300">(Kurumsal)</span>
+                      )}
                     </p>
                   ) : (
-                    <p className="text-rose-400 font-medium">🌐 Web sitesi YOK</p>
+                    <p className="text-amber-400 font-medium">🌐 Haritada Web Kaydı Yok</p>
                   )}
                   {m.instagram && (
                     <p className="truncate text-purple-400">📸 @{m.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}</p>
@@ -203,7 +208,7 @@ const MapRadar: React.FC<MapRadarProps> = ({ center, radius, merchants, isScanni
                   onClick={() => onAudit(m)}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-1.5 px-3 rounded-lg text-xs transition-colors cursor-pointer shadow-md shadow-emerald-500/20"
                 >
-                  Dijital Röntgen Çek 🩺
+                  Derin Röntgen & Web Kazıyıcı 🩺
                 </button>
               </div>
             </Popup>

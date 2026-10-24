@@ -87,6 +87,8 @@ async def audit_merchant(
         and existing_merchant.audit_data
         and isinstance(existing_merchant.audit_data, dict)
         and "sales_pitch_whatsapp" in existing_merchant.audit_data
+        and "cms_platform" in existing_merchant.audit_data
+        and "recommended_package" in existing_merchant.audit_data
         and existing_merchant.last_scanned_at
         and (now - existing_merchant.last_scanned_at) < timedelta(hours=24)
     ):
@@ -99,6 +101,8 @@ async def audit_merchant(
     if existing_merchant:
         existing_merchant.audit_data = audit_result
         existing_merchant.last_scanned_at = now
+        if not existing_merchant.website and audit_result.get("discovered_website"):
+            existing_merchant.website = audit_result["discovered_website"]
         if not existing_merchant.email and audit_result.get("scraped_emails"):
             existing_merchant.email = audit_result["scraped_emails"][0]
         if not existing_merchant.phone and audit_result.get("scraped_phones"):
@@ -106,3 +110,67 @@ async def audit_merchant(
         db.commit()
     
     return audit_result
+
+
+@router.get("/ai-status", response_model=schemas.AIStatusResponse)
+def get_ai_status(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    from services.pitch_generator import get_gemini_status
+    return get_gemini_status()
+
+
+@router.post("/ai-config", response_model=schemas.AIStatusResponse)
+def update_ai_config(
+    request: schemas.AIConfigRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    from services.pitch_generator import save_gemini_api_key
+    return save_gemini_api_key(request.api_key)
+
+
+@router.post("/generate-pitch", response_model=schemas.PitchGenerateResponse)
+async def generate_custom_pitch(
+    request: schemas.PitchGenerateRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    from services.pitch_generator import generate_personalized_pitch
+
+    sender_name = request.sender_name
+    if not sender_name:
+        if current_user.full_name:
+            sender_name = current_user.full_name
+        elif current_user.first_name or current_user.last_name:
+            sender_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
+
+    pitch_result = await generate_personalized_pitch(
+        merchant_name=request.merchant_name,
+        category=request.category,
+        tone=request.tone,
+        focus_service=request.focus_service,
+        sender_name=sender_name,
+        agency_name=request.agency_name,
+        special_offer=request.special_offer,
+        custom_instruction=request.custom_instruction,
+        audit_context=request.audit_context if isinstance(request.audit_context, dict) else {},
+        gemini_api_key=request.gemini_api_key,
+    )
+
+    if request.osm_id:
+        existing_merchant = db.query(models.Merchant).filter(models.Merchant.osm_id == request.osm_id).first()
+        if existing_merchant and isinstance(existing_merchant.audit_data, dict):
+            updated_audit = dict(existing_merchant.audit_data)
+            updated_audit["ai_engine_used"] = pitch_result.get("engine_used", "smart_hybrid_ai")
+            updated_audit["recommended_package"] = pitch_result.get("recommended_package")
+            updated_audit["detected_pain_points"] = pitch_result.get("detected_pain_points", [])
+            updated_audit["value_propositions"] = pitch_result.get("value_propositions", [])
+            updated_audit["sales_pitch_whatsapp"] = pitch_result.get("whatsapp_pitch")
+            updated_audit["email_subject"] = pitch_result.get("email_subject")
+            updated_audit["sales_pitch_email"] = pitch_result.get("email_pitch")
+            updated_audit["instagram_dm_pitch"] = pitch_result.get("instagram_dm_pitch")
+            updated_audit["cold_call_script"] = pitch_result.get("cold_call_script")
+            existing_merchant.audit_data = updated_audit
+            db.commit()
+
+    return pitch_result

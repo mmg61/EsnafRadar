@@ -2,6 +2,7 @@ import httpx
 import logging
 from fastapi import HTTPException
 from typing import List, Dict, Any
+from services.brands import resolve_known_brand_website
 
 # Overpass API Sunucuları (Hızlı ve stabil olanlar en başta)
 OVERPASS_URLS = [
@@ -132,11 +133,20 @@ def get_category_info(tags: Dict[str, Any]) -> tuple[str, str, str, str]:
     clean_label = raw_cat.replace("_", " ").title()
     return raw_cat, f"Yerel İşletme ({clean_label})", "other", "🏢"
 
-def calculate_opportunity(phone: str | None, website: str | None, instagram: str | None, email: str | None = None) -> tuple[int, str]:
+def calculate_opportunity(
+    phone: str | None,
+    website: str | None,
+    instagram: str | None,
+    email: str | None = None,
+    is_corporate_chain: bool = False
+) -> tuple[int, str]:
     has_web = bool(website and len(website.strip()) > 3)
     has_tel = bool(phone and len(phone.strip()) > 3)
     has_insta = bool(instagram and len(instagram.strip()) > 2)
     has_mail = bool(email and len(email.strip()) > 3)
+
+    if is_corporate_chain:
+        return 20, "🏢 Kurumsal Zincir (Web Mevcut)"
 
     if not has_web and has_tel:
         return 95, "🚨 Acil Web Sitesi (Telefonu Var)"
@@ -246,12 +256,33 @@ async def search_merchants(lat: float, lon: float, radius: int, category: str = 
                     
                     phone = tags.get("phone") or tags.get("contact:phone") or tags.get("mobile") or tags.get("contact:mobile") or tags.get("whatsapp") or tags.get("contact:whatsapp")
                     email = tags.get("email") or tags.get("contact:email")
-                    website = tags.get("website") or tags.get("contact:website") or tags.get("url") or tags.get("facebook") or tags.get("contact:facebook")
+                    osm_website = (
+                        tags.get("website")
+                        or tags.get("contact:website")
+                        or tags.get("url")
+                        or tags.get("brand:website")
+                        or tags.get("operator:website")
+                        or tags.get("facebook")
+                        or tags.get("contact:facebook")
+                    )
+                    brand_url = resolve_known_brand_website(name, tags.get("brand"), tags.get("operator"))
+                    is_corporate_chain = bool(brand_url)
+
+                    if osm_website:
+                        website = osm_website
+                        website_source = "osm"
+                    elif brand_url:
+                        website = brand_url
+                        website_source = "brand_chain"
+                    else:
+                        website = None
+                        website_source = None
+
                     instagram = tags.get("contact:instagram") or tags.get("instagram")
                     opening_hours = tags.get("opening_hours")
                     address = format_address(tags)
 
-                    score, badge = calculate_opportunity(phone, website, instagram, email)
+                    score, badge = calculate_opportunity(phone, website, instagram, email, is_corporate_chain)
 
                     item = {
                         "osm_id": str(element.get("id")),
@@ -265,6 +296,8 @@ async def search_merchants(lat: float, lon: float, radius: int, category: str = 
                         "phone": phone,
                         "email": email,
                         "website": website,
+                        "website_source": website_source,
+                        "is_corporate_chain": is_corporate_chain,
                         "instagram": instagram,
                         "opening_hours": opening_hours,
                         "address": address,
@@ -276,13 +309,19 @@ async def search_merchants(lat: float, lon: float, radius: int, category: str = 
                     dedup_key = f"{name.strip().lower()}_{round(float(el_lat), 3)}_{round(float(el_lon), 3)}"
                     if dedup_key in dedup_map:
                         existing = dedup_map[dedup_key]
-                        for field in ["phone", "email", "website", "instagram", "opening_hours"]:
+                        for field in ["phone", "email", "website", "website_source", "instagram", "opening_hours"]:
                             if not existing.get(field) and item.get(field):
                                 existing[field] = item[field]
+                        if item.get("is_corporate_chain"):
+                            existing["is_corporate_chain"] = True
                         if existing.get("address") == "Adres detayı belirtilmemiş" and item.get("address") != "Adres detayı belirtilmemiş":
                             existing["address"] = item["address"]
                         new_score, new_badge = calculate_opportunity(
-                            existing.get("phone"), existing.get("website"), existing.get("instagram"), existing.get("email")
+                            existing.get("phone"),
+                            existing.get("website"),
+                            existing.get("instagram"),
+                            existing.get("email"),
+                            bool(existing.get("is_corporate_chain"))
                         )
                         existing["lead_potential_score"] = new_score
                         existing["opportunity_badge"] = new_badge
@@ -293,6 +332,7 @@ async def search_merchants(lat: float, lon: float, radius: int, category: str = 
                 # Sonuçları fırsat puanına (ve ardından iletişim verisi zenginliğine) göre yüksekten düşüğe sırala
                 results.sort(
                     key=lambda x: (
+                        0 if x.get("is_corporate_chain") else 1,
                         x["lead_potential_score"],
                         1 if x.get("phone") else 0,
                         1 if x.get("instagram") or x.get("email") else 0

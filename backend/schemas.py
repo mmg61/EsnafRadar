@@ -63,6 +63,8 @@ class MerchantBase(BaseModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     website: Optional[str] = None
+    website_source: Optional[str] = None
+    is_corporate_chain: Optional[bool] = False
     instagram: Optional[str] = None
     opening_hours: Optional[str] = None
     address: Optional[str] = None
@@ -85,21 +87,76 @@ class AuditResponse(BaseModel):
     ssl_valid: bool
     mobile_ready: bool
     has_website: bool
+    discovered_website: Optional[str] = None
+    website_source: Optional[str] = None
+    is_corporate_chain: Optional[bool] = False
     http_status: Optional[int] = None
     response_time_ms: Optional[int] = None
     has_title: Optional[bool] = False
     page_title: Optional[str] = None
     has_meta_description: Optional[bool] = False
+    meta_description: Optional[str] = None
     has_h1: Optional[bool] = False
+    h1_text: Optional[str] = None
+    has_og_tags: Optional[bool] = False
+    has_schema: Optional[bool] = False
+    has_favicon: Optional[bool] = False
     has_analytics: Optional[bool] = False
     has_pixel: Optional[bool] = False
+    cms_platform: Optional[str] = None
+    crawled_pages: List[str] = []
     scraped_emails: List[str] = []
     scraped_phones: List[str] = []
+    scraped_whatsapp: Optional[str] = None
     social_links: dict[str, str] = {}
     ai_summary: str
     opportunities: List[str]
+    ai_engine_used: Optional[str] = "smart_hybrid_ai"
+    recommended_package: Optional[str] = None
+    detected_pain_points: List[str] = []
+    value_propositions: List[str] = []
     sales_pitch_whatsapp: Optional[str] = None
+    email_subject: Optional[str] = None
     sales_pitch_email: Optional[str] = None
+    instagram_dm_pitch: Optional[str] = None
+    cold_call_script: Optional[str] = None
+
+
+class AIConfigRequest(BaseModel):
+    api_key: str
+
+
+class AIStatusResponse(BaseModel):
+    configured: bool
+    masked_key: Optional[str] = None
+    model: str = "gemini-2.5-flash"
+
+
+class PitchGenerateRequest(BaseModel):
+    osm_id: Optional[str] = None
+    merchant_name: str
+    category: Optional[str] = None
+    tone: str = "kurumsal"
+    focus_service: str = "auto"
+    sender_name: Optional[str] = None
+    agency_name: Optional[str] = None
+    special_offer: Optional[str] = None
+    custom_instruction: Optional[str] = None
+    audit_context: Optional[Any] = None
+    gemini_api_key: Optional[str] = None
+
+
+class PitchGenerateResponse(BaseModel):
+    engine_used: str
+    model_name: str
+    recommended_package: str
+    detected_pain_points: List[str] = []
+    value_propositions: List[str] = []
+    whatsapp_pitch: str
+    email_subject: str
+    email_pitch: str
+    instagram_dm_pitch: str
+    cold_call_script: str
 
 class ScanHistoryResponse(BaseModel):
     id: int

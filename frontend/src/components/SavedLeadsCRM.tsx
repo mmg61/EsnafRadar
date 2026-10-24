@@ -536,10 +536,11 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                       <button
                         type="button"
                         onClick={() => onInspectMerchant(lead.merchant)}
-                        title="Dijital Röntgen Raporunu Aç"
-                        className="p-2 bg-slate-900 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-lg transition-colors cursor-pointer"
+                        title="Yapay Zeka (Gemini) Teklif Üretici ve Dijital Röntgen Raporunu Aç"
+                        className="px-2.5 py-2 bg-slate-900 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
                       >
-                        <FileSearch size={15} />
+                        <FileSearch size={14} />
+                        <span>AI Teklif & Röntgen</span>
                       </button>
                     )}
 

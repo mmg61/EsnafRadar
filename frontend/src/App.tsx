@@ -163,6 +163,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterOnlyNoWebsite, setFilterOnlyNoWebsite] = useState<boolean>(false);
   const [filterOnlyWithPhone, setFilterOnlyWithPhone] = useState<boolean>(false);
+  const [hideCorporateChains, setHideCorporateChains] = useState<boolean>(false);
   const [scanHistory, setScanHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
 
@@ -224,7 +225,25 @@ function App() {
         merchant.category_label || merchant.category || undefined,
         forceRefresh
       );
-      setAuditResult({ ...result, merchantName: merchant.name, merchant });
+      const enrichedMerchant = {
+        ...merchant,
+        website: merchant.website || result.discovered_website || undefined,
+        website_source: result.website_source || merchant.website_source,
+        phone:
+          merchant.phone ||
+          result.scraped_whatsapp ||
+          (result.scraped_phones && result.scraped_phones.length > 0 ? result.scraped_phones[0] : undefined),
+        email:
+          merchant.email ||
+          (result.scraped_emails && result.scraped_emails.length > 0 ? result.scraped_emails[0] : undefined),
+        instagram:
+          merchant.instagram ||
+          (result.social_links && result.social_links.instagram ? result.social_links.instagram : undefined)
+      };
+      setMerchants(prev =>
+        prev.map(m => (m.osm_id === merchant.osm_id ? enrichedMerchant : m))
+      );
+      setAuditResult({ ...result, merchantName: merchant.name, merchant: enrichedMerchant });
     } catch (err: any) {
       showAppToast('error', err.message || "Röntgen çekilirken hata oluştu.");
     } finally {
@@ -242,9 +261,13 @@ function App() {
         latitude: auditResult.merchant.latitude || center[0],
         longitude: auditResult.merchant.longitude || center[1],
         category: auditResult.merchant.category,
-        phone: auditResult.merchant.phone,
-        email: auditResult.merchant.email,
-        website: auditResult.merchant.website,
+        phone:
+          auditResult.merchant.phone ||
+          (auditResult.scraped_phones && auditResult.scraped_phones.length > 0 ? auditResult.scraped_phones[0] : undefined),
+        email:
+          auditResult.merchant.email ||
+          (auditResult.scraped_emails && auditResult.scraped_emails.length > 0 ? auditResult.scraped_emails[0] : undefined),
+        website: auditResult.merchant.website || auditResult.discovered_website,
         address: auditResult.merchant.address,
         opportunity_score: auditResult.score,
         audit_data: auditResult
@@ -481,7 +504,8 @@ function App() {
       (m.category && m.category.toLowerCase().includes(q));
     const matchesNoWeb = !filterOnlyNoWebsite || !m.website;
     const matchesPhone = !filterOnlyWithPhone || Boolean(m.phone);
-    return matchesSearch && matchesNoWeb && matchesPhone;
+    const matchesChain = !hideCorporateChains || !m.is_corporate_chain;
+    return matchesSearch && matchesNoWeb && matchesPhone && matchesChain;
   });
 
   if (!token) {
@@ -1166,11 +1190,13 @@ function App() {
       {auditResult && (
         <AuditModal
           auditResult={auditResult}
+          token={token}
           isSavingLead={isSavingLead}
           saveLeadSuccess={saveLeadSuccess}
           onClose={() => setAuditResult(null)}
           onSaveLead={handleSaveLead}
           onReAudit={() => handleAudit(auditResult.merchant, true)}
+          onAuditResultUpdate={(updated) => setAuditResult(updated)}
         />
       )}
 
@@ -1411,6 +1437,15 @@ function App() {
                       />
                       <span>📞 Sadece Telefonu Olanlar</span>
                     </label>
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={hideCorporateChains}
+                        onChange={e => setHideCorporateChains(e.target.checked)}
+                        className="accent-emerald-500 rounded cursor-pointer"
+                      />
+                      <span>🏪 Kurumsal Zincirleri Gizle (Yerel Esnaf)</span>
+                    </label>
                   </div>
                 </div>
               )}
@@ -1454,8 +1489,12 @@ function App() {
                         <span className={m.phone ? "text-emerald-400 font-medium" : "text-slate-500"}>
                           {m.phone ? "📞 Telefon Var" : "📞 Tel Yok"}
                         </span>
-                        <span className={m.website ? "text-blue-400" : "text-rose-400 font-medium"}>
-                          {m.website ? "🌐 Web Var" : "🌐 Web Yok"}
+                        <span className={m.website ? "text-blue-400" : "text-amber-400 font-medium"}>
+                          {m.website
+                            ? m.is_corporate_chain
+                              ? "🌐 Kurumsal Web"
+                              : "🌐 Web Var"
+                            : "🌐 Haritada Web Yok"}
                         </span>
                       </div>
                     </div>

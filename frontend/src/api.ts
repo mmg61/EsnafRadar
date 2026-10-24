@@ -65,6 +65,67 @@ export const deleteScanHistoryItem = async (scanId: number, token: string) => {
   return true;
 };
 
+export const getAiStatus = async (token: string) => {
+  const response = await fetch(`${API_URL}/discovery/ai-status`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Yapay zeka durumu alınamadı');
+  }
+  return response.json();
+};
+
+export const saveAiConfig = async (apiKey: string, token: string) => {
+  const response = await fetch(`${API_URL}/discovery/ai-config`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ api_key: apiKey })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Gemini API anahtarı kaydedilemedi');
+  }
+  return response.json();
+};
+
+export const generateCustomPitch = async (
+  payload: {
+    osm_id?: string;
+    merchant_name: string;
+    category?: string;
+    tone: string;
+    focus_service: string;
+    sender_name?: string;
+    agency_name?: string;
+    special_offer?: string;
+    custom_instruction?: string;
+    audit_context?: any;
+    gemini_api_key?: string;
+  },
+  token: string
+) => {
+  const response = await fetch(`${API_URL}/discovery/generate-pitch`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Kişiselleştirilmiş teklif üretilemedi');
+  }
+  return response.json();
+};
+
 export const registerUser = async (email: string, password: string, firstName: string, lastName: string, turnstileToken?: string) => {
     const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
