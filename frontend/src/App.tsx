@@ -44,6 +44,62 @@ function App() {
     }
   }, [cooldown]);
 
+  // Tarayıcı sekmesi açık olduğu sürece arka uçla bağlantıyı koru; sekme kapanınca sunucuları otomatik kapat
+  React.useEffect(() => {
+    let ws: WebSocket | null = null;
+    let pingInterval: any = null;
+    let isUnmounting = false;
+
+    const sendHeartbeat = () => {
+      fetch('http://localhost:8000/api/heartbeat', { method: 'POST', keepalive: true }).catch(() => {});
+    };
+
+    const connectKeepAlive = () => {
+      if (isUnmounting) return;
+      sendHeartbeat();
+      try {
+        ws = new WebSocket('ws://localhost:8000/api/keepalive');
+        ws.onopen = () => {
+          sendHeartbeat();
+        };
+        ws.onclose = () => {
+          if (!isUnmounting) {
+            setTimeout(connectKeepAlive, 1500);
+          }
+        };
+      } catch (_) {}
+    };
+
+    connectKeepAlive();
+    pingInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send('ping');
+      } else {
+        sendHeartbeat();
+      }
+    }, 5000);
+
+    const handlePageHide = () => {
+      isUnmounting = true;
+      if (ws) {
+        try { ws.close(); } catch (_) {}
+      }
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('http://localhost:8000/api/tab-closed');
+      }
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      isUnmounting = true;
+      window.removeEventListener('pagehide', handlePageHide);
+      if (pingInterval) clearInterval(pingInterval);
+      if (ws) {
+        try { ws.close(); } catch (_) {}
+      }
+    };
+  }, []);
+
   const turnstileContainerRef = React.useRef<HTMLDivElement>(null);
   const turnstileWidgetId = React.useRef<string | null>(null);
   const otpRefs = React.useRef<(HTMLInputElement | null)[]>([]);
