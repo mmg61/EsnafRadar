@@ -37,34 +37,6 @@ export const auditMerchant = async (
   return response.json();
 };
 
-export const getScanHistory = async (token: string) => {
-  const response = await fetch(`${API_URL}/discovery/history`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.detail || 'Tarama geçmişi alınamadı');
-  }
-  return response.json();
-};
-
-export const deleteScanHistoryItem = async (scanId: number, token: string) => {
-  const response = await fetch(`${API_URL}/discovery/history/${scanId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.detail || 'Tarama kaydı silinemedi');
-  }
-  return true;
-};
-
 export const getAiStatus = async (token: string) => {
   const response = await fetch(`${API_URL}/discovery/ai-status`, {
     method: 'GET',
@@ -373,4 +345,87 @@ export const exportLeadsCsv = async (token: string) => {
   a.click();
   a.remove();
   window.URL.revokeObjectURL(url);
+};
+
+export const exportAuditPdf = async (payload: any, token: string) => {
+  const response = await fetch(`${API_URL}/discovery/export-pdf`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'PDF raporu oluşturulamadı');
+  }
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const safeName = (payload.merchant_name || 'isletme')
+    .toLowerCase()
+    .replace(/[^a-z0-9ğüşıöç]/gi, '_')
+    .replace(/_+/g, '_')
+    .slice(0, 40);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${safeName}_inceleme_raporu.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+
+export const updateLeadReminder = async (
+  leadId: number,
+  payload: {
+    reminder_at: string | null;
+    reminder_note?: string | null;
+    reminder_completed?: boolean;
+  },
+  token: string
+) => {
+  const response = await fetch(`${API_URL}/leads/${leadId}/reminder`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Hatırlatıcı güncellenemedi');
+  }
+  return response.json();
+};
+
+export const generateDemoSite = async (
+  payload: {
+    merchant_name: string;
+    category?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+    opening_hours?: string | null;
+    instagram?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  },
+  token: string
+) => {
+  const response = await fetch(`${API_URL}/discovery/demo-site`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Örnek site taslağı oluşturulamadı');
+  }
+  return response.json();
 };

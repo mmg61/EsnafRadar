@@ -7,7 +7,8 @@ import {
   updateLeadNote,
   deleteLeadNote,
   logLeadOutreach,
-  exportLeadsCsv
+  exportLeadsCsv,
+  updateLeadReminder
 } from '../api';
 import {
   Trash2,
@@ -26,7 +27,10 @@ import {
   Mail,
   CheckCircle2,
   AlertCircle,
-  FileSearch
+  FileSearch,
+  Bell,
+  Clock,
+  CalendarClock
 } from 'lucide-react';
 
 interface LeadNote {
@@ -47,11 +51,14 @@ interface OutreachLog {
   sent_at: string;
 }
 
-interface SavedLead {
+export interface SavedLead {
   id: number;
   status: string;
   opportunity_score: number;
   saved_at: string;
+  reminder_at?: string | null;
+  reminder_note?: string | null;
+  reminder_completed?: boolean;
   notes?: LeadNote[];
   outreach_logs?: OutreachLog[];
   merchant: {
@@ -73,6 +80,7 @@ interface SavedLeadsCRMProps {
   token: string;
   onLeadCountChange?: (count: number) => void;
   onInspectMerchant?: (merchant: any) => void;
+  onRemindersUpdated?: () => void;
 }
 
 const statusOptions = [
@@ -83,10 +91,16 @@ const statusOptions = [
   { value: 'rejected', label: 'Reddedildi', color: 'bg-rose-500/10 text-rose-400 border-rose-500/30' },
 ];
 
+function toLocalDatetimeInputValue(dateObj: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+}
+
 export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
   token,
   onLeadCountChange,
-  onInspectMerchant
+  onInspectMerchant,
+  onRemindersUpdated
 }) => {
   const [leads, setLeads] = useState<SavedLead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,13 +112,18 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [confirmDeleteLeadId, setConfirmDeleteLeadId] = useState<number | null>(null);
 
-  // Detay / Not Defteri & İletişim Geçmişi çekmecesi durumu
+  // Detay / Not Defteri, Hatırlatıcı & İletişim Geçmişi çekmecesi durumu
   const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
-  const [detailTab, setDetailTab] = useState<'notes' | 'outreach'>('notes');
+  const [detailTab, setDetailTab] = useState<'notes' | 'reminder' | 'outreach'>('notes');
   const [newNoteText, setNewNoteText] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
+
+  // Hatırlatıcı form durumları
+  const [reminderDateInput, setReminderDateInput] = useState('');
+  const [reminderNoteInput, setReminderNoteInput] = useState('');
+  const [isSavingReminder, setIsSavingReminder] = useState(false);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
@@ -128,6 +147,117 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
     fetchLeads();
   }, [token]);
 
+  const openLeadModal = (lead: SavedLead, tab: 'notes' | 'reminder' | 'outreach') => {
+    setSelectedLeadId(lead.id);
+    setDetailTab(tab);
+    if (lead.reminder_at) {
+      const dt = new Date(lead.reminder_at);
+      if (!isNaN(dt.getTime())) {
+        setReminderDateInput(toLocalDatetimeInputValue(dt));
+      } else {
+        setReminderDateInput('');
+      }
+    } else {
+      const tomorrow10 = new Date();
+      tomorrow10.setDate(tomorrow10.getDate() + 1);
+      tomorrow10.setHours(10, 0, 0, 0);
+      setReminderDateInput(toLocalDatetimeInputValue(tomorrow10));
+    }
+    setReminderNoteInput(lead.reminder_note || '');
+  };
+
+  const applyReminderPreset = (preset: '1h' | 'tomorrow10' | 'tomorrow14' | '3d' | '1w') => {
+    const d = new Date();
+    if (preset === '1h') {
+      d.setHours(d.getHours() + 1);
+    } else if (preset === 'tomorrow10') {
+      d.setDate(d.getDate() + 1);
+      d.setHours(10, 0, 0, 0);
+    } else if (preset === 'tomorrow14') {
+      d.setDate(d.getDate() + 1);
+      d.setHours(14, 0, 0, 0);
+    } else if (preset === '3d') {
+      d.setDate(d.getDate() + 3);
+      d.setHours(11, 0, 0, 0);
+    } else if (preset === '1w') {
+      d.setDate(d.getDate() + 7);
+      d.setHours(11, 0, 0, 0);
+    }
+    setReminderDateInput(toLocalDatetimeInputValue(d));
+  };
+
+  const handleSaveReminder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLeadId || !reminderDateInput || isSavingReminder) return;
+    setIsSavingReminder(true);
+    try {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
+      const isoDate = new Date(reminderDateInput).toISOString();
+      const updated = await updateLeadReminder(
+        selectedLeadId,
+        {
+          reminder_at: isoDate,
+          reminder_note: reminderNoteInput.trim() || 'Geri arama / teklif takibi yapılacak',
+          reminder_completed: false
+        },
+        token
+      );
+      setLeads(prev => prev.map(l => (l.id === selectedLeadId ? updated : l)));
+      if (onRemindersUpdated) onRemindersUpdated();
+      showToast('success', 'Geri arama hatırlatıcısı kaydedildi.');
+    } catch (err: any) {
+      showToast('error', err.message || 'Hatırlatıcı kaydedilemedi.');
+    } finally {
+      setIsSavingReminder(false);
+    }
+  };
+
+  const handleToggleReminderComplete = async (lead: SavedLead, completed: boolean) => {
+    if (!lead.reminder_at) return;
+    try {
+      const updated = await updateLeadReminder(
+        lead.id,
+        {
+          reminder_at: lead.reminder_at,
+          reminder_note: lead.reminder_note || null,
+          reminder_completed: completed
+        },
+        token
+      );
+      setLeads(prev => prev.map(l => (l.id === lead.id ? updated : l)));
+      if (onRemindersUpdated) onRemindersUpdated();
+      showToast('success', completed ? 'Hatırlatıcı tamamlandı olarak işaretlendi.' : 'Hatırlatıcı tekrar aktif edildi.');
+    } catch (err: any) {
+      showToast('error', err.message || 'Hatırlatıcı güncellenemedi.');
+    }
+  };
+
+  const handleClearReminder = async (leadId: number) => {
+    setIsSavingReminder(true);
+    try {
+      const updated = await updateLeadReminder(
+        leadId,
+        {
+          reminder_at: null,
+          reminder_note: null,
+          reminder_completed: false
+        },
+        token
+      );
+      setLeads(prev => prev.map(l => (l.id === leadId ? updated : l)));
+      setReminderDateInput('');
+      setReminderNoteInput('');
+      if (onRemindersUpdated) onRemindersUpdated();
+      showToast('success', 'Hatırlatıcı kaldırıldı.');
+    } catch (err: any) {
+      showToast('error', err.message || 'Hatırlatıcı silinemedi.');
+    } finally {
+      setIsSavingReminder(false);
+    }
+  };
+
   const handleStatusChange = async (leadId: number, newStatus: string) => {
     try {
       await updateLeadStatus(leadId, newStatus, token);
@@ -146,6 +276,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
       setConfirmDeleteLeadId(null);
       if (selectedLeadId === leadId) setSelectedLeadId(null);
       if (onLeadCountChange) onLeadCountChange(updated.length);
+      if (onRemindersUpdated) onRemindersUpdated();
       showToast('success', 'Müşteri kaydı listeden silindi.');
     } catch (err: any) {
       showToast('error', err.message || 'Silme işlemi sırasında hata oluştu.');
@@ -294,6 +425,10 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
   };
 
   const selectedLead = leads.find(l => l.id === selectedLeadId) || null;
+  const nowMs = Date.now();
+
+  const activeReminders = leads.filter(l => l.reminder_at && !l.reminder_completed);
+  const dueReminders = activeReminders.filter(l => new Date(l.reminder_at!).getTime() <= nowMs);
 
   const filteredLeads = leads.filter(lead => {
     const q = search.toLowerCase();
@@ -301,8 +436,11 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
       lead.merchant.name.toLowerCase().includes(q) ||
       (lead.merchant.category && lead.merchant.category.toLowerCase().includes(q)) ||
       (lead.merchant.address && lead.merchant.address.toLowerCase().includes(q));
-    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    if (!matchesSearch) return false;
+    if (statusFilter === 'reminders') {
+      return Boolean(lead.reminder_at && !lead.reminder_completed);
+    }
+    return statusFilter === 'all' || lead.status === statusFilter;
   });
 
   return (
@@ -322,6 +460,30 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             <AlertCircle size={16} className="text-rose-400 shrink-0" />
           )}
           <span>{feedback.message}</span>
+        </div>
+      )}
+
+      {/* Zamanı Gelen Hatırlatıcı Uyarı Bandı */}
+      {dueReminders.length > 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Bell size={20} className="text-amber-400 shrink-0 mt-0.5 animate-bounce" />
+            <div>
+              <h4 className="text-sm font-bold text-amber-200">
+                Geri Arama Zamanı Gelen {dueReminders.length} Müşteri Var
+              </h4>
+              <p className="text-xs text-amber-300/80 mt-0.5">
+                {dueReminders.map(d => d.merchant.name).join(', ')} için planlanan takip zamanı geldi.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('reminders')}
+            className="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors shrink-0 cursor-pointer"
+          >
+            Hatırlatıcıları Göster
+          </button>
         </div>
       )}
 
@@ -350,6 +512,21 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
           >
             Hepsi ({leads.length})
           </button>
+
+          <button
+            onClick={() => setStatusFilter('reminders')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border inline-flex items-center gap-1.5 cursor-pointer ${
+              statusFilter === 'reminders'
+                ? 'bg-amber-500 text-slate-950 border-amber-500'
+                : activeReminders.length > 0
+                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/40 hover:bg-amber-500/20'
+                  : 'bg-slate-900 text-slate-400 hover:text-white border-slate-700'
+            }`}
+          >
+            <Bell size={13} />
+            <span>Hatırlatıcılar ({activeReminders.length})</span>
+          </button>
+
           {statusOptions.map(opt => {
             const count = leads.filter(l => l.status === opt.value).length;
             return (
@@ -388,10 +565,10 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
       ) : filteredLeads.length === 0 ? (
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-12 text-center">
           <Building2 size={48} className="mx-auto text-slate-500 mb-3" />
-          <h3 className="text-lg font-bold text-slate-300">Henüz Kayıtlı Müşteri Yok</h3>
+          <h3 className="text-lg font-bold text-slate-300">Kayıtlı Müşteri Bulunamadı</h3>
           <p className="text-slate-500 text-sm mt-1 max-w-md mx-auto">
-            Harita radarı üzerinden işletmeleri tarayıp Dijital Röntgen ekranındaki
-            <span className="text-emerald-400 font-semibold"> "Listeme Kaydet (CRM)"</span> butonuna tıklayarak potansiyel müşterilerinizi buraya ekleyebilirsiniz.
+            Harita üzerinden işletmeleri tarayıp İnceleme Raporu ekranındaki
+            <span className="text-emerald-400 font-semibold"> "Müşteri Adaylarına Kaydet"</span> butonuna tıklayarak potansiyel müşterilerinizi buraya ekleyebilirsiniz.
           </p>
         </div>
       ) : (
@@ -400,11 +577,18 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             const notesCount = lead.notes?.length || 0;
             const outreachCount = lead.outreach_logs?.length || 0;
             const lastNote = notesCount > 0 ? lead.notes![0] : null;
+            const hasReminder = Boolean(lead.reminder_at);
+            const reminderMs = lead.reminder_at ? new Date(lead.reminder_at).getTime() : 0;
+            const isReminderDue = hasReminder && !lead.reminder_completed && reminderMs <= nowMs;
 
             return (
               <div
                 key={lead.id}
-                className="bg-slate-800 rounded-xl border border-slate-700 hover:border-emerald-500/40 transition-all p-5 flex flex-col justify-between shadow-lg"
+                className={`bg-slate-800 rounded-xl border transition-all p-5 flex flex-col justify-between shadow-lg ${
+                  isReminderDue
+                    ? 'border-amber-500/70 ring-1 ring-amber-500/30'
+                    : 'border-slate-700 hover:border-emerald-500/40'
+                }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-3">
@@ -416,6 +600,51 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                       {lead.opportunity_score}/100 Puan
                     </span>
                   </div>
+
+                  {/* Hatırlatıcı Kutusu (Varsa) */}
+                  {hasReminder && (
+                    <div
+                      className={`mb-3 px-3 py-2.5 rounded-lg border text-xs flex items-start justify-between gap-2 ${
+                        lead.reminder_completed
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : isReminderDue
+                            ? 'bg-amber-500/15 border-amber-500/50 text-amber-200'
+                            : 'bg-sky-500/10 border-sky-500/30 text-sky-200'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 font-bold text-[11px]">
+                          <Clock size={12} />
+                          <span>
+                            {lead.reminder_completed
+                              ? 'Tamamlandı: '
+                              : isReminderDue
+                                ? 'Arama Zamanı Geldi: '
+                                : 'Hatırlatıcı: '}
+                            {new Date(lead.reminder_at!).toLocaleString('tr-TR', {
+                              day: '2-digit',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        {lead.reminder_note && (
+                          <p className="text-[11px] opacity-90 mt-1 line-clamp-2">{lead.reminder_note}</p>
+                        )}
+                      </div>
+                      {!lead.reminder_completed && (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleReminderComplete(lead, true)}
+                          title="Arandı / Tamamlandı Olarak İşaretle"
+                          className="px-2 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] shrink-0 cursor-pointer"
+                        >
+                          Tamamla
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   {/* İletişim & Konum Bilgileri */}
                   <div className="space-y-1.5 text-xs text-slate-300 my-3 bg-slate-900/60 p-3 rounded-lg border border-slate-700/50">
@@ -456,7 +685,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                   )}
                 </div>
 
-                {/* Alt Kısım: Durum Yönetimi, Notlar ve İletişim Eylemleri */}
+                {/* Alt Kısım: Durum Yönetimi, Notlar, Hatırlatıcı ve İletişim Eylemleri */}
                 <div className="pt-3 border-t border-slate-700/80 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs text-slate-400">Aşama:</span>
@@ -473,29 +702,36 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                     </select>
                   </div>
 
-                  {/* Not Defteri, İletişim Kayıtları ve Röntgen Butonları */}
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Not Defteri, Hatırlatıcı ve İletişim Kayıtları Butonları */}
+                  <div className="grid grid-cols-3 gap-1.5">
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedLeadId(lead.id);
-                        setDetailTab('notes');
-                      }}
-                      className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                      onClick={() => openLeadModal(lead, 'notes')}
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
                     >
-                      <StickyNote size={13} className="text-emerald-400" />
+                      <StickyNote size={12} className="text-emerald-400 shrink-0" />
                       <span>Notlar ({notesCount})</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedLeadId(lead.id);
-                        setDetailTab('outreach');
-                      }}
-                      className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                      onClick={() => openLeadModal(lead, 'reminder')}
+                      className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-colors cursor-pointer ${
+                        hasReminder && !lead.reminder_completed
+                          ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
+                          : 'bg-slate-900 hover:bg-slate-700 text-slate-200 border-slate-700'
+                      }`}
                     >
-                      <History size={13} className="text-blue-400" />
+                      <Bell size={12} className="text-amber-400 shrink-0" />
+                      <span>Hatırlatıcı</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openLeadModal(lead, 'outreach')}
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
+                    >
+                      <History size={12} className="text-blue-400 shrink-0" />
                       <span>İletişim ({outreachCount})</span>
                     </button>
                   </div>
@@ -536,11 +772,11 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                       <button
                         type="button"
                         onClick={() => onInspectMerchant(lead.merchant)}
-                        title="Yapay Zeka (Gemini) Teklif Üretici ve Dijital Röntgen Raporunu Aç"
+                        title="İşletme İnceleme Raporunu ve Hazır Teklifleri Aç"
                         className="px-2.5 py-2 bg-slate-900 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
                       >
                         <FileSearch size={14} />
-                        <span>AI Teklif & Röntgen</span>
+                        <span>İnceleme</span>
                       </button>
                     )}
 
@@ -579,14 +815,14 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
         </div>
       )}
 
-      {/* Not Defteri ve İletişim Geçmişi Modalı */}
+      {/* Not Defteri, Hatırlatıcı ve İletişim Geçmişi Modalı */}
       {selectedLead && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-slate-800 w-full max-w-2xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
             <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-white">{selectedLead.merchant.name}</h3>
-                <p className="text-xs text-slate-400">Müşteri Not Defteri ve İletişim Kayıtları</p>
+                <p className="text-xs text-slate-400">Müşteri Not Defteri, Geri Arama Hatırlatıcısı ve İletişim Kayıtları</p>
               </div>
               <button
                 onClick={() => {
@@ -600,7 +836,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             </div>
 
             {/* Sekmeler */}
-            <div className="flex border-b border-slate-700 bg-slate-900/50 px-6 pt-2 gap-3">
+            <div className="flex border-b border-slate-700 bg-slate-900/50 px-6 pt-2 gap-4">
               <button
                 type="button"
                 onClick={() => setDetailTab('notes')}
@@ -613,6 +849,20 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                 <StickyNote size={14} />
                 <span>Görüşme Notları ({selectedLead.notes?.length || 0})</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setDetailTab('reminder')}
+                className={`pb-2.5 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  detailTab === 'reminder'
+                    ? 'border-amber-500 text-amber-400'
+                    : 'border-transparent text-slate-400 hover:text-white'
+                }`}
+              >
+                <CalendarClock size={14} />
+                <span>Geri Arama Hatırlatıcısı</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setDetailTab('outreach')}
@@ -628,14 +878,14 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             </div>
 
             <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              {detailTab === 'notes' ? (
+              {detailTab === 'notes' && (
                 <>
                   <form onSubmit={handleAddNote} className="space-y-2">
                     <textarea
                       rows={3}
                       value={newNoteText}
                       onChange={e => setNewNoteText(e.target.value)}
-                      placeholder="Görüşme detayları, karar verici ismi, geri dönüş tarihi vb. notunuzu yazınız..."
+                      placeholder="Görüşme detayları, karar verici ismi, fiyat teklifi vb. notunuzu yazınız..."
                       className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                     />
                     <div className="flex justify-end">
@@ -730,7 +980,117 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                     )}
                   </div>
                 </>
-              ) : (
+              )}
+
+              {detailTab === 'reminder' && (
+                <form onSubmit={handleSaveReminder} className="space-y-5">
+                  <div className="bg-slate-900/90 border border-slate-700 rounded-xl p-4 space-y-3">
+                    <label className="block text-xs font-bold text-slate-200">
+                      Hızlı Zaman Seçimi
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => applyReminderPreset('1h')}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium cursor-pointer"
+                      >
+                        1 Saat Sonra
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyReminderPreset('tomorrow10')}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium cursor-pointer"
+                      >
+                        Yarın 10:00
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyReminderPreset('tomorrow14')}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium cursor-pointer"
+                      >
+                        Yarın 14:00
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyReminderPreset('3d')}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium cursor-pointer"
+                      >
+                        3 Gün Sonra
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyReminderPreset('1w')}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium cursor-pointer"
+                      >
+                        1 Hafta Sonra
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        Tarih ve Saat
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={reminderDateInput}
+                        onChange={e => setReminderDateInput(e.target.value)}
+                        required
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        Hatırlatma Notu
+                      </label>
+                      <input
+                        type="text"
+                        value={reminderNoteInput}
+                        onChange={e => setReminderNoteInput(e.target.value)}
+                        placeholder="Örn: İşletme sahibiyle fiyat görüşülecek"
+                        maxLength={140}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <div className="flex items-center gap-2">
+                      {selectedLead.reminder_at && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleReminderComplete(selectedLead, !selectedLead.reminder_completed)}
+                            className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs font-semibold cursor-pointer"
+                          >
+                            {selectedLead.reminder_completed ? 'Tekrar Aktif Et' : 'Arandı / Tamamlandı İşaretle'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleClearReminder(selectedLead.id)}
+                            disabled={isSavingReminder}
+                            className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold cursor-pointer"
+                          >
+                            Hatırlatıcıyı Kaldır
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSavingReminder || !reminderDateInput}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      <Bell size={14} />
+                      <span>{isSavingReminder ? 'Kaydediliyor...' : 'Hatırlatıcıyı Kaydet'}</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {detailTab === 'outreach' && (
                 <div className="space-y-3">
                   {!selectedLead.outreach_logs || selectedLead.outreach_logs.length === 0 ? (
                     <p className="text-center text-xs text-slate-500 py-6">

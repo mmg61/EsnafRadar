@@ -1,12 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 import database, models
 from routers import auth, discovery, leads
 
 # Veritabanı tablolarını başlangıçta otomatik oluştur (yoksa)
 models.Base.metadata.create_all(bind=database.engine)
 
-app = FastAPI(title="EsnafRadar API", version="2.0.0")
+
+def _ensure_sqlite_columns() -> None:
+    """Mevcut SQLite veritabanına yeni eklenen hatırlatıcı sütunlarını veri kaybı olmadan ekler."""
+    with database.engine.connect() as conn:
+        rows = conn.execute(text("PRAGMA table_info(saved_leads)")).fetchall()
+        existing_cols = {row[1] for row in rows}
+        if "reminder_at" not in existing_cols:
+            conn.execute(text("ALTER TABLE saved_leads ADD COLUMN reminder_at DATETIME"))
+        if "reminder_note" not in existing_cols:
+            conn.execute(text("ALTER TABLE saved_leads ADD COLUMN reminder_note VARCHAR"))
+        if "reminder_completed" not in existing_cols:
+            conn.execute(text("ALTER TABLE saved_leads ADD COLUMN reminder_completed BOOLEAN DEFAULT 0"))
+        conn.commit()
+
+
+_ensure_sqlite_columns()
+
+app = FastAPI(title="EsnafRadar API", version="2.1.0")
 
 # CORS yapılandırması
 app.add_middleware(

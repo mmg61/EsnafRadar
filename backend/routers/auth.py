@@ -179,7 +179,7 @@ def read_users_me(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     saved_count = db.query(models.SavedLead).filter(models.SavedLead.user_id == current_user.id).count()
-    scans_count = db.query(models.ScanHistory).filter(models.ScanHistory.user_id == current_user.id).count()
+    scans_count = 0
     return {
         "id": current_user.id,
         "email": current_user.email,
@@ -220,7 +220,7 @@ def update_user_profile(
     db.refresh(current_user)
 
     saved_count = db.query(models.SavedLead).filter(models.SavedLead.user_id == current_user.id).count()
-    scans_count = db.query(models.ScanHistory).filter(models.ScanHistory.user_id == current_user.id).count()
+    scans_count = 0
     return {
         "id": current_user.id,
         "email": current_user.email,

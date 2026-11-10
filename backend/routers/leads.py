@@ -143,6 +143,8 @@ def export_saved_leads_csv(
         "E-posta",
         "Web Sitesi",
         "Adres",
+        "Hatırlatıcı Tarihi",
+        "Hatırlatıcı Notu",
         "Not Sayısı",
         "Son Not",
         "İletişim Sayısı",
@@ -155,6 +157,8 @@ def export_saved_leads_csv(
         last_note = lead.notes[0].content.replace("\n", " ") if notes_count > 0 else ""
         outreach_count = len(lead.outreach_logs or [])
         saved_date = lead.saved_at.strftime("%Y-%m-%d %H:%M") if lead.saved_at else ""
+        reminder_date = lead.reminder_at.strftime("%Y-%m-%d %H:%M") if lead.reminder_at else ""
+        reminder_note = (lead.reminder_note or "").replace("\n", " ")
         writer.writerow([
             m.name if m else "",
             (m.category or "Genel") if m else "",
@@ -164,6 +168,8 @@ def export_saved_leads_csv(
             (m.email or "") if m else "",
             (m.website or "") if m else "",
             (m.address or "") if m else "",
+            reminder_date,
+            reminder_note,
             notes_count,
             last_note,
             outreach_count,
@@ -198,6 +204,33 @@ def update_lead_status(
         raise HTTPException(status_code=404, detail="Kayıtlı lead bulunamadı")
 
     lead.status = request.status
+    db.commit()
+    db.refresh(lead)
+    return lead
+
+
+@router.patch("/{lead_id}/reminder", response_model=schemas.SavedLeadResponse)
+def update_lead_reminder(
+    lead_id: int,
+    request: schemas.LeadReminderUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Müşteri adayı için geri arama / takip hatırlatıcısı kurar, günceller veya kaldırır.
+    """
+    lead = db.query(models.SavedLead).filter(
+        models.SavedLead.id == lead_id,
+        models.SavedLead.user_id == current_user.id
+    ).first()
+
+    if not lead:
+        raise HTTPException(status_code=404, detail="Kayıtlı müşteri bulunamadı.")
+
+    lead.reminder_at = request.reminder_at
+    lead.reminder_note = request.reminder_note.strip() if request.reminder_note else None
+    lead.reminder_completed = bool(request.reminder_completed) if request.reminder_at else False
+
     db.commit()
     db.refresh(lead)
     return lead

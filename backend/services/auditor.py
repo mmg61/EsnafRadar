@@ -51,7 +51,11 @@ def _normalize_tr_phone(raw: str) -> Optional[str]:
     if len(digits) == 7 and digits.startswith("444"):
         return f"444 {digits[3:5]} {digits[5:7]}"
     # 90 ile başlayan 12 haneli numara
-    if len(digits) == 12 and digits.startswith("90"):
+    if len(digits) == 14 and digits.startswith("0090"):
+        digits = "0" + digits[4:]
+    elif len(digits) == 13 and digits.startswith("900"):
+        digits = "0" + digits[3:]
+    elif len(digits) == 12 and digits.startswith("90"):
         digits = "0" + digits[2:]
     elif len(digits) == 10 and digits[0] in ("2", "3", "4", "5", "8"):
         digits = "0" + digits
@@ -343,32 +347,32 @@ def _build_smart_fallback_analysis(name: str, category: str | None, result: dict
     if not result["has_website"]:
         result["score"] = 92
         result["ai_summary"] = (
-            f"{name} ({cat_label}) için harita veritabanında ve yapılan derin web/alan adı taramasında aktif bir "
-            f"kurumsal web sitesine rastlanmamıştır. Bölgesel aramalarda potansiyel müşterilerin işletmeye doğrudan "
-            f"ulaşabilmesi için modern, mobil uyumlu bir web sitesi ve Google İşletme Profili (Yerel SEO) "
-            f"optimizasyonu en yüksek öncelikli satış fırsatıdır."
+            f"{name} ({cat_label}) için internette aktif bir web sitesi bulunamadı. "
+            f"Google'da arama yapan müşterilerin işletmeye kolayca ulaşabilmesi için "
+            f"telefona uyumlu bir tanıtım sitesi kurulması ve Google Harita kaydının düzenlenmesi "
+            f"en öncelikli ihtiyaçtır."
         )
         result["opportunities"] = [
-            "Kurumsal Web Sitesi Kurulumu",
-            "Google İşletme Profili & Yerel SEO",
-            "Online Randevu / WhatsApp İletişim Entegrasyonu",
-            "Sosyal Medya & Dijital Kimlik Yönetimi"
+            "Yeni Web Sitesi Kurulumu",
+            "Google Harita Kaydı ve Üst Sıra Çalışması",
+            "WhatsApp Hızlı Sipariş ve Randevu Hattı",
+            "Sosyal Medya Sayfa Düzenlemesi"
         ]
         result["sales_pitch_whatsapp"] = (
-            f"Merhaba {name} yetkilisi, bölgenizdeki {cat_label} sektörüne yönelik dijital görünürlük incelememizde "
-            f"işletmenizin aktif bir web sitesinin bulunmadığını fark ettik. Google aramalarında bölgenizdeki "
-            f"müşterilerin size doğrudan ulaşmasını sağlayacak mobil uyumlu kurumsal web sitesi ve harita SEO "
-            f"çözümlerimiz hakkında 2 dakikalık bir ön sunum paylaşmak isteriz. Müsaitliğiniz nasıl olur?"
+            f"Merhaba {name} yetkilisi, bölgenizdeki {cat_label} işletmelerini incelerken "
+            f"işletmenizin internet sitesinin olmadığını fark ettik. Google'da sizi arayan müşterilerin "
+            f"doğrudan size ulaşmasını sağlayacak telefon uyumlu web sitesi ve Google Harita çalışmamız "
+            f"hakkında kısa bilgi paylaşmak isteriz. Müsait olduğunuzda görüşebilir miyiz?"
         )
         result["sales_pitch_email"] = (
-            f"Konu: {name} - Dijital Görünürlük ve Yeni Müşteri Kazanımı Raporu\n\n"
+            f"Konu: {name} - İnternet Görünürlüğü ve Yeni Müşteri Kazanımı\n\n"
             f"Sayın {name} Yetkilisi,\n\n"
-            f"Bölgenizde faaliyet gösteren {cat_label} işletmelerinin dijital varlıkları üzerine gerçekleştirdiğimiz "
-            f"teknik analizde, işletmenize ait aktif bir web sitesi bulunmadığını tespit ettik.\n\n"
-            f"Günümüzde yerel müşterilerin %80'inden fazlası hizmet almadan önce Google üzerinden arama yapmaktadır. "
-            f"İşletmenize özel hazırlayabileceğimiz hızlı, mobil uyumlu kurumsal web sitesi ve Google Haritalar SEO "
-            f"çalışması ile bölgenizdeki potansiyel müşterileri doğrudan işletmenize yönlendirebiliriz.\n\n"
-            f"Ücretsiz örnek tasarım ve yol haritasını paylaşmak adına uygun olduğunuzda kısa bir görüşme planlamak isteriz.\n\n"
+            f"Bölgenizdeki {cat_label} işletmelerini incelerken işletmenize ait aktif bir web sitesi "
+            f"bulunmadığını gördük.\n\n"
+            f"Bugün müşterilerin büyük çoğunluğu hizmet almadan önce Google üzerinden arama yapmaktadır. "
+            f"İşletmenize özel hazırlayacağımız telefona uyumlu web sitesi ve Google Harita düzenlemesi ile "
+            f"bölgenizdeki müşterileri doğrudan size yönlendirebiliriz.\n\n"
+            f"Örnek çalışmamızı göstermek için uygun olduğunuzda kısa bir görüşme yapabiliriz.\n\n"
             f"İyi çalışmalar dileriz."
         )
         return
@@ -377,116 +381,105 @@ def _build_smart_fallback_analysis(name: str, category: str | None, result: dict
     if result.get("is_corporate_chain"):
         result["score"] = 20
         result["ai_summary"] = (
-            f"{name} ulusal/küresel ölçekli bir kurumsal zincir şubesidir ve merkezi web altyapısı "
-            f"({result.get('discovered_website') or 'mevcut'}) aktif durumdadır. Bireysel web tasarım satışı yerine "
-            f"bağımsız yerel işletmelere odaklanılması önerilir."
+            f"{name} bilinen bir zincir mağaza şubesidir ve kendi merkezi web sitesi "
+            f"({result.get('discovered_website') or 'mevcut'}) bulunmaktadır. Tekil esnaf yerine "
+            f"bağımsız yerel işletmelere odaklanılması daha uygundur."
         )
         result["opportunities"] = [
-            "Kurumsal Zincir (Merkezi Yönetim)",
-            "Bölgesel Sponsorluk / İşbirliği"
+            "Kurumsal Zincir Şubesi",
+            "Bölgesel Tanıtım İşbirliği"
         ]
         result["sales_pitch_whatsapp"] = (
-            f"Merhaba {name} yetkilisi, bölgenizdeki şubeniz için yürüttüğümüz yerel tanıtım ve dijital işbirliği "
-            f"projemiz hakkında ilgili departmanınızla bilgi paylaşmak isteriz."
+            f"Merhaba {name} yetkilisi, bölgenizdeki şubeniz için yürüttüğümüz yerel tanıtım "
+            f"çalışmamız hakkında bilgi paylaşmak isteriz."
         )
         result["sales_pitch_email"] = (
-            f"Konu: {name} - Bölgesel Dijital İşbirliği Teklifi\n\n"
+            f"Konu: {name} - Bölgesel Tanıtım İşbirliği\n\n"
             f"Sayın {name} Yetkilisi,\n\n"
-            f"Bölgesel dijital pazarlama ve yerel görünürlük projelerimiz kapsamında kurumsal iletişim "
-            f"departmanınızla işbirliği olanaklarını değerlendirmek isteriz.\n\n"
+            f"Bölgesel tanıtım projelerimiz kapsamında işletmenizle işbirliği imkanlarını "
+            f"değerlendirmek isteriz.\n\n"
             f"İyi çalışmalar dileriz."
         )
         return
 
-    # Yerel işletmenin web sitesi mevcut: Teknik sinyalleri değerlendir
+    # Yerel işletmenin web sitesi mevcut: Sade ve anlaşılır değerlendirme
     deficiencies = []
     opps = []
     score = 28
 
     if not result["ssl_valid"]:
-        deficiencies.append("SSL güvenlik sertifikası (HTTPS) bulunmuyor ve tarayıcılarda 'Güvenli Değil' uyarısı veriyor")
-        opps.append("SSL Güvenlik Sertifikası & HTTPS Geçişi")
+        deficiencies.append("güvenli bağlantı (kilit simgesi) yok ve siteye girerken 'Güvenli Değil' uyarısı çıkıyor")
+        opps.append("Güvenli Bağlantı (SSL) Kurulumu")
         score += 20
 
     if not result["mobile_ready"]:
-        deficiencies.append("mobil cihaz uyumluluk (responsive viewport) etiketi eksik")
-        opps.append("Mobil Uyumlu (Responsive) Web Yenileme")
+        deficiencies.append("site telefon ve tablet ekranlarına uyumlu değil, yazılar küçük veya kaymış görünüyor")
+        opps.append("Telefon ve Tablet Uyumlu Yenileme")
         score += 20
 
     if not result["has_title"] or not result["has_meta_description"] or not result["has_h1"]:
-        missing_seo = []
-        if not result["has_title"]:
-            missing_seo.append("sayfa başlığı (title)")
-        if not result["has_meta_description"]:
-            missing_seo.append("meta açıklama (description)")
-        if not result["has_h1"]:
-            missing_seo.append("H1 ana başlık etiketi")
-        deficiencies.append(f"temel SEO etiketlerinde ({', '.join(missing_seo)}) eksiklikler mevcut")
-        opps.append("Teknik SEO & Arama Motoru Optimizasyonu")
+        deficiencies.append("Google aramalarında üst sırada çıkmayı sağlayan başlık ve tanıtım yazıları eksik")
+        opps.append("Google Üst Sıra (Arama) Düzenlemesi")
         score += 15
 
     if not result.get("has_schema"):
-        opps.append("Schema.org (Yerel İşletme Yapısal Veri) Kurulumu")
+        opps.append("Google Harita ve İşletme Kimlik Kaydı")
         score += 6
 
     if not result["has_analytics"] and not result["has_pixel"]:
-        deficiencies.append("Google Analytics veya Meta Pixel dönüşüm takip kodları kurulu değil")
-        opps.append("Google Ads & Meta Pixel Dönüşüm Kurulumu")
+        deficiencies.append("siteye kaç kişinin girdiği ve reklamdan gelen müşteriler takip edilmiyor")
+        opps.append("Ziyaretçi Sayacı ve Reklam Takip Kurulumu")
         score += 12
     elif not result["has_pixel"]:
-        opps.append("Sosyal Medya Yeniden Pazarlama (Meta Pixel) Kurulumu")
+        opps.append("Instagram ve Facebook Reklam Takip Kurulumu")
         score += 6
 
     if result.get("response_time_ms") and result["response_time_ms"] > 2000:
-        deficiencies.append(f"sayfa yanıt süresi ({result['response_time_ms']} ms) ideal hız sınırının üzerinde")
-        opps.append("Site Hızlandırma & Performans Optimizasyonu")
+        deficiencies.append(f"site yavaş açılıyor ({result['response_time_ms']} ms)")
+        opps.append("Site Açılış Hızını Artırma")
         score += 8
 
     if not opps:
-        opps = ["İçerik & Yerel SEO Güncellemesi", "Google Ads Arama Ağı Reklam Yönetimi", "Dönüşüm Oranı Optimizasyonu (CRO)"]
+        opps = ["Site İçerik Yenileme", "Google ve Instagram Reklam Yönetimi", "WhatsApp Hızlı İletişim Butonu"]
 
     result["score"] = min(95, max(25, score))
 
     discovery_note = ""
-    if result.get("website_source") == "auto_discovered" and result.get("discovered_website"):
-        discovery_note = f"Harita kaydında yer almayan web sitesi ({result['discovered_website']}) derin tarama ile otomatik tespit edilmiştir. "
-
-    cms_note = f"Altyapı: {result['cms_platform']}. " if result.get("cms_platform") else ""
+    if result.get("website_source") in ("auto_discovered", "web_search") and result.get("discovered_website"):
+        discovery_note = f"Haritada yazılı olmayan web sitesi ({result['discovered_website']}) otomatik olarak bulundu. "
 
     if deficiencies:
         def_text = "; ayrıca ".join(deficiencies)
         result["ai_summary"] = (
-            f"{discovery_note}{cms_note}{name} web sitesi erişilebilir durumda ({result.get('response_time_ms', 0)} ms yanıt süresi), "
-            f"ancak yapılan teknik röntgende {def_text}. Bu eksikliklerin giderilmesi işletmenin Google sıralamasını "
-            f"ve müşteri dönüşüm oranını doğrudan artıracaktır."
+            f"{discovery_note}{name} işletmesinin bir web sitesi var ancak yapılan incelemede {def_text}. "
+            f"Bu eksikler giderildiğinde müşteriler siteye daha çok güvenecek ve Google aramalarından "
+            f"daha fazla müşteri gelecektir."
         )
         main_issue = deficiencies[0]
     else:
         result["ai_summary"] = (
-            f"{discovery_note}{cms_note}{name} işletmesinin web sitesi temel SSL, mobil uyumluluk ve SEO kriterlerini sağlamaktadır. "
-            f"Bu aşamada işletmeye bölgesel Google Ads reklam yönetimi, sosyal medya içerik üretimi ve "
-            f"dönüşüm odaklı büyüme paketleri sunulabilir."
+            f"{discovery_note}{name} işletmesinin web sitesi genel olarak düzgün çalışıyor. "
+            f"Müşteri sayısını artırmak için bölgesel Google ve Instagram reklamları ile "
+            f"WhatsApp hızlı sipariş/randevu hattı önerilebilir."
         )
-        main_issue = "bölgesel arama motoru rekabetinde üst sıralara çıkma potansiyeli"
+        main_issue = "Google ve sosyal medya üzerinden daha fazla müşteri çekme fırsatı"
 
     result["opportunities"] = opps
     result["sales_pitch_whatsapp"] = (
-        f"Merhaba {name} yetkilisi, işletmenizin web sitesini ({result.get('cms_platform') or 'kurumsal web'}) teknik olarak inceledik. "
-        f"Siteniz aktif ancak {main_issue} konusunda iyileştirme fırsatları tespit ettik. Küçük bir revizyonla Google aramalarından "
-        f"gelen müşteri trafiğinizi artırabiliriz. Hazırladığımız kısa teknik raporu paylaşmamızı ister misiniz?"
+        f"Merhaba {name} yetkilisi, işletmenizin web sitesini inceledik. "
+        f"Siteniz açık ancak {main_issue} olduğunu fark ettik. Küçük bir düzenlemeyle Google'dan "
+        f"gelen müşterilerinizi artırabiliriz. Hazırladığımız kısa inceleme notunu paylaşmamızı ister misiniz?"
     )
     result["sales_pitch_email"] = (
-        f"Konu: {name} Web Sitesi Teknik Analiz ve İyileştirme Raporu\n\n"
+        f"Konu: {name} Web Sitesi İnceleme Notları\n\n"
         f"Sayın {name} Yetkilisi,\n\n"
-        f"İşletmenize ait web sitesi üzerinde gerçekleştirdiğimiz derin teknik denetimde öne çıkan bulgular aşağıdadır:\n"
-        f"- Web Altyapısı: {result.get('cms_platform') or 'Standart Web'}\n"
-        f"- SSL Güvenlik Durumu: {'Geçerli (HTTPS)' if result['ssl_valid'] else 'Eksik (Güvenli Değil Uyarısı)'}\n"
-        f"- Mobil Uyumluluk: {'Uyumlu' if result['mobile_ready'] else 'Eksik (Mobil Cihazlarda Görünüm Sorunu)'}\n"
-        f"- SEO Meta & Başlık Yapısı: {'Tam' if (result['has_title'] and result['has_meta_description']) else 'Eksik Etiketler Mevcut'}\n"
-        f"- Yapısal Veri (Schema.org): {'Mevcut' if result.get('has_schema') else 'Eksik'}\n"
-        f"- Reklam ve Analitik Takibi: {'Kurulu' if (result['has_analytics'] or result['has_pixel']) else 'Kurulu Değil'}\n\n"
-        f"Belirtilen noktaların optimize edilmesiyle sitenizin arama motoru performansını ve müşteri dönüşümlerini "
-        f"hızla yükseltebiliriz. Detayları görüşmek üzere geri dönüşünüzü bekleriz.\n\n"
+        f"İşletmenizin web sitesini incelediğimizde dikkat çeken noktalar şunlardır:\n"
+        f"- Güvenli Bağlantı (Kilit Simgesi): {'Var' if result['ssl_valid'] else 'Yok (Güvenli Değil Uyarısı Veriyor)'}\n"
+        f"- Telefon Uyumu: {'Uygun' if result['mobile_ready'] else 'Eksik (Telefonda Düzgün Görünmüyor)'}\n"
+        f"- Google Başlık ve Tanıtım Yazısı: {'Tam' if (result['has_title'] and result['has_meta_description']) else 'Eksik'}\n"
+        f"- Ziyaretçi ve Reklam Takibi: {'Kurulu' if (result['has_analytics'] or result['has_pixel']) else 'Kurulu Değil'}\n\n"
+        f"Bu eksikleri düzelterek sitenizden daha fazla müşteri gelmesini sağlayabiliriz. "
+        f"Detayları konuşmak için geri dönüşünüzü bekleriz.\n\n"
         f"İyi çalışmalar dileriz."
     )
 

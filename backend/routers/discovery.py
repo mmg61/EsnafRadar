@@ -19,54 +19,9 @@ async def scan_area(
 ):
     """
     Belirtilen koordinat ve yarıçap etrafındaki esnafları bulur.
-    Örn: lat=41.0082, lon=28.9784, radius=500
     """
     merchants = await search_merchants(lat=lat, lon=lon, radius=radius, category=category)
-    
-    # Tarama geçmişini kaydet
-    history = models.ScanHistory(
-        user_id=current_user.id,
-        search_lat=lat,
-        search_lng=lon,
-        radius_meters=radius,
-        category_filter=category,
-        results_count=len(merchants)
-    )
-    db.add(history)
-    db.commit()
-    
     return merchants
-
-
-@router.get("/history", response_model=List[schemas.ScanHistoryResponse])
-def get_scan_history(
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    """
-    Kullanıcının son 20 bölgesel tarama geçmişini döndürür.
-    """
-    items = db.query(models.ScanHistory).filter(
-        models.ScanHistory.user_id == current_user.id
-    ).order_by(models.ScanHistory.created_at.desc()).limit(20).all()
-    return items
-
-
-@router.delete("/history/{scan_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_scan_history_item(
-    scan_id: int,
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    item = db.query(models.ScanHistory).filter(
-        models.ScanHistory.id == scan_id,
-        models.ScanHistory.user_id == current_user.id
-    ).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Tarama kaydı bulunamadı.")
-    db.delete(item)
-    db.commit()
-    return None
 
 
 @router.post("/audit", response_model=schemas.AuditResponse)
@@ -94,10 +49,10 @@ async def audit_merchant(
     ):
         return existing_merchant.audit_data
 
-    # Röntgeni çek
+    # İncelemeyi çalıştır
     audit_result = await run_audit(name=request.name, website=request.website, category=request.category)
     
-    # Eğer bu esnaf veritabanında kayıtlıysa röntgen verisini ve kazınan iletişim bilgilerini önbellekle
+    # Eğer bu esnaf veritabanında kayıtlıysa inceleme verisini ve iletişim bilgilerini önbellekle
     if existing_merchant:
         existing_merchant.audit_data = audit_result
         existing_merchant.last_scanned_at = now
@@ -174,3 +129,35 @@ async def generate_custom_pitch(
             db.commit()
 
     return pitch_result
+
+
+@router.post("/export-pdf")
+def export_audit_pdf(
+    request: schemas.PdfExportRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    from fastapi.responses import Response
+    from services.pdf_report import generate_audit_pdf_bytes
+
+    pdf_bytes = generate_audit_pdf_bytes(request.model_dump())
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "attachment; filename=isletme_inceleme_raporu.pdf"
+        }
+    )
+
+
+@router.post("/demo-site", response_model=schemas.DemoSiteResponse)
+def generate_merchant_demo_site(
+    request: schemas.DemoSiteRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    from services.demo_site import generate_demo_site_html
+
+    html_content = generate_demo_site_html(request.model_dump())
+    return {
+        "merchant_name": request.merchant_name,
+        "html_content": html_content,
+    }

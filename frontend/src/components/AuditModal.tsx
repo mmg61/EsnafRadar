@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   Globe,
-  Clock,
-  FileCode2,
-  BarChart3,
   CheckCircle2,
   XCircle,
   Copy,
@@ -15,16 +12,20 @@ import {
   BookmarkPlus,
   ExternalLink,
   Phone,
-  Layers,
   Sparkles,
-  SearchCode,
   Wand2,
   KeyRound,
   SlidersHorizontal,
   PhoneCall,
-  Send
+  Send,
+  FileDown,
+  FileText,
+  ArrowRight,
+  LayoutTemplate,
+  Monitor,
+  Smartphone
 } from 'lucide-react';
-import { getAiStatus, saveAiConfig, generateCustomPitch } from '../api';
+import { getAiStatus, saveAiConfig, generateCustomPitch, exportAuditPdf, generateDemoSite } from '../api';
 
 interface AuditModalProps {
   auditResult: any;
@@ -37,7 +38,65 @@ interface AuditModalProps {
   onAuditResultUpdate?: (updatedAudit: any) => void;
 }
 
+type MainModalTab = 'overview' | 'proposal' | 'demo_site';
 type PitchChannelTab = 'whatsapp' | 'email' | 'instagram' | 'cold_call';
+
+/**
+ * +90, 0090, 90 veya 0 ile başlayan aynı telefon numaralarını tek bir standart
+ * Türkiye formatına (0XXX XXX XX XX) dönüştürür ve mükerrer olanları eler.
+ */
+function normalizeAndDeduplicatePhones(rawPhones: (string | null | undefined)[]): string[] {
+  const seenKeys = new Set<string>();
+  const result: string[] = [];
+
+  for (const raw of rawPhones) {
+    if (!raw || typeof raw !== 'string') continue;
+    // Noktalı virgül veya virgülle ayrılmış birden fazla numara varsa parçala
+    const parts = raw.split(/[;,]/);
+    for (const part of parts) {
+      let digits = part.replace(/\D/g, '');
+      if (!digits) continue;
+
+      // 444 XX XX (7 haneli çağrı merkezi)
+      if (digits.length === 7 && digits.startsWith('444')) {
+        const key = digits;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          result.push(`444 ${digits.slice(3, 5)} ${digits.slice(5, 7)}`);
+        }
+        continue;
+      }
+
+      // Uluslararası ülke kodu (+90 / 0090 / 900) temizliği
+      if (digits.length === 14 && digits.startsWith('0090')) {
+        digits = '0' + digits.slice(4);
+      } else if (digits.length === 13 && digits.startsWith('900')) {
+        digits = '0' + digits.slice(3);
+      } else if (digits.length === 12 && digits.startsWith('90')) {
+        digits = '0' + digits.slice(2);
+      } else if (digits.length === 10 && ['2', '3', '4', '5', '8'].includes(digits[0])) {
+        digits = '0' + digits;
+      }
+
+      if (digits.length === 11 && digits.startsWith('0')) {
+        if (!seenKeys.has(digits)) {
+          seenKeys.add(digits);
+          const formatted = `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9, 11)}`;
+          result.push(formatted);
+        }
+      } else if (digits.length >= 7) {
+        // Diğer formatlar için son 10 haneyi anahtar olarak kullan
+        const fallbackKey = digits.slice(-10);
+        if (!seenKeys.has(fallbackKey)) {
+          seenKeys.add(fallbackKey);
+          result.push(part.trim());
+        }
+      }
+    }
+  }
+
+  return result;
+}
 
 export const AuditModal: React.FC<AuditModalProps> = ({
   auditResult,
@@ -51,11 +110,18 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 }) => {
   const activeToken = token || localStorage.getItem('token') || '';
 
+  const [mainTab, setMainTab] = useState<MainModalTab>('overview');
   const [pitchTab, setPitchTab] = useState<PitchChannelTab>('whatsapp');
   const [copied, setCopied] = useState(false);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
-  // Yapay Zeka (Google Gemini) Teklif Üretici Durumları
+  // Canlı Örnek Site Önizleme Durumları
+  const [demoSiteHtml, setDemoSiteHtml] = useState<string>('');
+  const [isGeneratingDemoSite, setIsGeneratingDemoSite] = useState<boolean>(false);
+  const [demoPreviewDevice, setDemoPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+
+  // Teklif Oluşturucu Durumları
   const [tone, setTone] = useState<string>('kurumsal');
   const [focusService, setFocusService] = useState<string>('auto');
   const [senderName, setSenderName] = useState<string>('');
@@ -66,7 +132,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [isGeneratingPitch, setIsGeneratingPitch] = useState<boolean>(false);
   const [pitchStatusMessage, setPitchStatusMessage] = useState<string | null>(null);
 
-  // Gemini API Anahtarı Yapılandırma Durumları
+  // Yapay Zeka Anahtarı Durumları
   const [aiStatus, setAiStatus] = useState<{ configured: boolean; masked_key?: string | null; model: string }>({
     configured: false,
     masked_key: null,
@@ -76,7 +142,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [isSavingApiKey, setIsSavingApiKey] = useState<boolean>(false);
 
-  // Canlı düzenlenebilir teklif metinleri
+  // Düzenlenebilir teklif metinleri
   const [whatsappPitch, setWhatsappPitch] = useState<string>('');
   const [emailSubject, setEmailSubject] = useState<string>('');
   const [emailPitch, setEmailPitch] = useState<string>('');
@@ -84,27 +150,29 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [coldCallScript, setColdCallScript] = useState<string>('');
   const [recommendedPackage, setRecommendedPackage] = useState<string>('');
   const [valuePropositions, setValuePropositions] = useState<string[]>([]);
-  const [engineUsed, setEngineUsed] = useState<string>('smart_hybrid_ai');
+
 
   useEffect(() => {
     if (!auditResult) return;
+    setMainTab('overview');
+    setDemoSiteHtml('');
     setWhatsappPitch(auditResult.sales_pitch_whatsapp || '');
     setEmailSubject(
       auditResult.email_subject ||
-        `${auditResult.merchantName} - Dijital Görünürlük ve Teknik Analiz Raporu`
+        `${auditResult.merchantName} - Web Sitesi ve Tanıtım İnceleme Notu`
     );
     setEmailPitch(auditResult.sales_pitch_email || '');
     setInstagramPitch(
       auditResult.instagram_dm_pitch ||
-        `Merhaba ${auditResult.merchantName}! İşletmenizin dijital görünürlüğünü ve müşteri dönüşümünü artıracak özel web/SEO çalışmamızı paylaşmak isteriz.`
+        `Merhaba ${auditResult.merchantName}! İşletmenize daha fazla müşteri kazandıracak web sitesi ve harita çalışmamızı paylaşmak isteriz.`
     );
     setColdCallScript(
       auditResult.cold_call_script ||
-        `1. AÇILIŞ: Merhaba, ${auditResult.merchantName} yetkilisi ile mi görüşüyorum?\n2. TESPİT: Bölgenizdeki işletmelerin dijital görünürlüğünü incelerken işletmenizin web ve Google Harita potansiyelini analiz ettik.\n3. ÇÖZÜM: Müşterilerin doğrudan size ulaşmasını sağlayan kurumsal web ve yerel SEO paketimiz bulunuyor.\n4. KAPANIŞ: Hazırladığımız örnek çalışmayı WhatsApp numaranıza iletebilir miyim?`
+        `1. AÇILIŞ: Merhaba, ${auditResult.merchantName} yetkilisi ile mi görüşüyorum?\n2. DURUM: Bölgenizdeki işletmelere bakarken internet sitenizi ve Google Harita kaydınızı inceledik.\n3. ÇÖZÜM: Müşterilerin doğrudan size ulaşmasını sağlayan telefon uyumlu web sitesi ve harita paketimiz var.\n4. KAPANIŞ: Hazırladığımız örnek çalışmayı WhatsApp numaranıza gönderebilir miyim?`
     );
     setRecommendedPackage(auditResult.recommended_package || '');
     setValuePropositions(auditResult.value_propositions || []);
-    setEngineUsed(auditResult.ai_engine_used || 'smart_hybrid_ai');
+
   }, [auditResult]);
 
   useEffect(() => {
@@ -118,13 +186,30 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   const merchant = auditResult.merchant || {};
   const effectiveWebsite = auditResult.discovered_website || merchant.website || null;
-  const effectivePhone =
-    merchant.phone ||
-    auditResult.scraped_whatsapp ||
-    (auditResult.scraped_phones && auditResult.scraped_phones.length > 0 ? auditResult.scraped_phones[0] : null);
-  const effectiveEmail =
-    merchant.email ||
-    (auditResult.scraped_emails && auditResult.scraped_emails.length > 0 ? auditResult.scraped_emails[0] : null);
+
+  // Tüm telefon numaralarını (+90 ve 0 farkını gidererek) tekilleştir
+  const allPhones: string[] = normalizeAndDeduplicatePhones([
+    merchant.phone,
+    auditResult.scraped_whatsapp,
+    ...(auditResult.scraped_phones || [])
+  ]);
+
+  const allEmails: string[] = Array.from(
+    new Set(
+      [
+        ...(merchant.email ? [merchant.email.trim().toLowerCase()] : []),
+        ...((auditResult.scraped_emails || []).map((e: string) => e.trim().toLowerCase()))
+      ].filter(Boolean)
+    )
+  );
+
+  const effectivePhone = allPhones.length > 0 ? allPhones[0] : null;
+  const effectiveEmail = allEmails.length > 0 ? allEmails[0] : null;
+
+  const socialLinks: Record<string, string> = {
+    ...(merchant.instagram ? { instagram: merchant.instagram } : {}),
+    ...(auditResult.social_links || {})
+  };
 
   const getActivePitchText = () => {
     if (pitchTab === 'whatsapp') return whatsappPitch;
@@ -158,6 +243,99 @@ export const AuditModal: React.FC<AuditModalProps> = ({
     } catch (_) {}
   };
 
+  const handleDownloadPdf = async () => {
+    if (!activeToken || isExportingPdf) return;
+    setIsExportingPdf(true);
+    try {
+      await exportAuditPdf(
+        {
+          merchant_name: auditResult.merchantName || merchant.name || 'İşletme',
+          category: merchant.category_label || merchant.category || 'Yerel İşletme',
+          website: effectiveWebsite,
+          phone: effectivePhone,
+          email: effectiveEmail,
+          score: auditResult.score,
+          has_website: Boolean(auditResult.has_website),
+          ssl_valid: Boolean(auditResult.ssl_valid),
+          mobile_ready: Boolean(auditResult.mobile_ready),
+          has_title: Boolean(auditResult.has_title),
+          has_meta_description: Boolean(auditResult.has_meta_description),
+          has_h1: Boolean(auditResult.has_h1),
+          has_og_tags: Boolean(auditResult.has_og_tags),
+          has_schema: Boolean(auditResult.has_schema),
+          has_analytics: Boolean(auditResult.has_analytics),
+          has_pixel: Boolean(auditResult.has_pixel),
+          ai_summary: auditResult.ai_summary,
+          recommended_package: recommendedPackage || auditResult.recommended_package,
+          detected_pain_points: auditResult.detected_pain_points || [],
+          opportunities: auditResult.opportunities || [],
+          value_propositions: valuePropositions,
+          whatsapp_pitch: whatsappPitch,
+          sales_pitch_whatsapp: whatsappPitch
+        },
+        activeToken
+      );
+      setPitchStatusMessage('PDF inceleme raporu bilgisayarınıza indirildi.');
+      setTimeout(() => setPitchStatusMessage(null), 3500);
+    } catch (err: any) {
+      setPitchStatusMessage(err.message || 'PDF raporu indirilemedi.');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleOpenDemoSite = async () => {
+    setMainTab('demo_site');
+    if (demoSiteHtml || isGeneratingDemoSite || !activeToken) return;
+    setIsGeneratingDemoSite(true);
+    try {
+      const res = await generateDemoSite(
+        {
+          merchant_name: auditResult.merchantName || merchant.name || 'Yerel İşletme',
+          category: merchant.category_label || merchant.category || 'Yerel İşletme',
+          phone: effectivePhone,
+          email: effectiveEmail,
+          address: merchant.address || null,
+          opening_hours: merchant.opening_hours || null,
+          instagram: socialLinks.instagram || merchant.instagram || null,
+          latitude: merchant.latitude || null,
+          longitude: merchant.longitude || null
+        },
+        activeToken
+      );
+      setDemoSiteHtml(res.html_content || '');
+    } catch (err: any) {
+      setPitchStatusMessage(err.message || 'Örnek site taslağı oluşturulamadı.');
+    } finally {
+      setIsGeneratingDemoSite(false);
+    }
+  };
+
+  const handleOpenDemoInNewTab = () => {
+    if (!demoSiteHtml) return;
+    const blob = new Blob([demoSiteHtml], { type: 'text/html;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadDemoHtml = () => {
+    if (!demoSiteHtml) return;
+    const blob = new Blob([demoSiteHtml], { type: 'text/html;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const safeName = (auditResult.merchantName || merchant.name || 'isletme')
+      .toLowerCase()
+      .replace(/[^a-z0-9ğüşıöç]/gi, '_')
+      .replace(/_+/g, '_')
+      .slice(0, 40);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}_ornek_web_sitesi.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   const handleSaveApiKey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeToken) return;
@@ -169,12 +347,12 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       setShowApiKeyModal(false);
       setPitchStatusMessage(
         updated.configured
-          ? 'Google Gemini API anahtarı kaydedildi. Şimdi Gemini 2.5 Flash ile teklif üretebilirsiniz.'
-          : 'API anahtarı temizlendi; Akıllı Hibrit Teklif Motoru aktif.'
+          ? 'Google Gemini anahtarı kaydedildi.'
+          : 'Anahtar kaldırıldı; standart teklif oluşturucu aktif.'
       );
       setTimeout(() => setPitchStatusMessage(null), 4000);
     } catch (err: any) {
-      setPitchStatusMessage(err.message || 'API anahtarı kaydedilemedi.');
+      setPitchStatusMessage(err.message || 'Anahtar kaydedilemedi.');
     } finally {
       setIsSavingApiKey(false);
     }
@@ -208,7 +386,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       setColdCallScript(res.cold_call_script || '');
       setRecommendedPackage(res.recommended_package || '');
       setValuePropositions(res.value_propositions || []);
-      setEngineUsed(res.engine_used || 'smart_hybrid_ai');
+
 
       if (onAuditResultUpdate) {
         onAuditResultUpdate({
@@ -225,14 +403,10 @@ export const AuditModal: React.FC<AuditModalProps> = ({
         });
       }
 
-      setPitchStatusMessage(
-        res.engine_used === 'google_gemini'
-          ? `Google Gemini (${res.model_name}) ile kişiselleştirilmiş teklifler başarıyla üretildi.`
-          : 'Röntgen verilerine dayalı kişiselleştirilmiş teklifler başarıyla güncellendi.'
-      );
+      setPitchStatusMessage('Teklif metinleri seçtiğiniz ayarlara göre yenilendi.');
       setTimeout(() => setPitchStatusMessage(null), 4000);
     } catch (err: any) {
-      setPitchStatusMessage(err.message || 'Teklif üretilirken bir hata oluştu.');
+      setPitchStatusMessage(err.message || 'Teklif oluşturulurken bir hata oluştu.');
     } finally {
       setIsGeneratingPitch(false);
     }
@@ -252,7 +426,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
     const phoneWithCountry = formatWhatsAppNumber(effectivePhone);
     const text = encodeURIComponent(
       whatsappPitch ||
-        `Merhaba ${auditResult.merchantName}, işletmenizin dijital varlığını inceledik ve bilgi vermek isteriz.`
+        `Merhaba ${auditResult.merchantName}, işletmenizin internet görünürlüğünü inceledik ve bilgi vermek isteriz.`
     );
     return `https://wa.me/${phoneWithCountry}?text=${text}`;
   };
@@ -260,7 +434,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const getMailtoLink = () => {
     if (!effectiveEmail) return null;
     const subject = encodeURIComponent(
-      emailSubject || `${auditResult.merchantName} - Dijital Görünürlük ve Teknik Analiz Raporu`
+      emailSubject || `${auditResult.merchantName} - Web Sitesi ve Tanıtım İnceleme Notu`
     );
     const body = encodeURIComponent(emailPitch || auditResult.ai_summary || '');
     return `mailto:${effectiveEmail}?subject=${subject}&body=${body}`;
@@ -271,774 +445,798 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   const checkItems = [
     { label: 'Web Sitesi', ok: Boolean(auditResult.has_website), okText: 'Mevcut', failText: 'Yok' },
-    { label: 'SSL Sertifikası (HTTPS)', ok: Boolean(auditResult.ssl_valid), okText: 'Geçerli', failText: 'Güvensiz / Yok' },
-    { label: 'Mobil Uyumluluk (Viewport)', ok: Boolean(auditResult.mobile_ready), okText: 'Uyumlu', failText: 'Uyumsuz' },
-    { label: 'SEO Sayfa Başlığı (Title)', ok: Boolean(auditResult.has_title), okText: 'Mevcut', failText: 'Eksik' },
-    { label: 'Meta Açıklama (Description)', ok: Boolean(auditResult.has_meta_description), okText: 'Mevcut', failText: 'Eksik' },
-    { label: 'H1 Ana Başlık Etiketi', ok: Boolean(auditResult.has_h1), okText: 'Mevcut', failText: 'Eksik' },
-    { label: 'OpenGraph Sosyal Paylaşım', ok: Boolean(auditResult.has_og_tags), okText: 'Mevcut', failText: 'Eksik' },
-    { label: 'Schema.org Yapısal Veri', ok: Boolean(auditResult.has_schema), okText: 'Kurulu', failText: 'Yok' },
-    { label: 'Google Analytics / GTM', ok: Boolean(auditResult.has_analytics), okText: 'Kurulu', failText: 'Yok' },
-    { label: 'Meta / Facebook Pixel', ok: Boolean(auditResult.has_pixel), okText: 'Kurulu', failText: 'Yok' },
+    { label: 'Güvenli Bağlantı (Kilit Simgesi)', ok: Boolean(auditResult.ssl_valid), okText: 'Güvenli', failText: 'Yok' },
+    { label: 'Telefon ve Tablet Uyumu', ok: Boolean(auditResult.mobile_ready), okText: 'Uyumlu', failText: 'Uyumsuz' },
+    { label: 'Google Arama Başlığı', ok: Boolean(auditResult.has_title), okText: 'Mevcut', failText: 'Eksik' },
+    { label: 'Google Tanıtım Yazısı', ok: Boolean(auditResult.has_meta_description), okText: 'Mevcut', failText: 'Eksik' },
+    { label: 'Ziyaretçi Sayacı', ok: Boolean(auditResult.has_analytics), okText: 'Kurulu', failText: 'Kurulu Değil' },
+    { label: 'Instagram / Facebook Reklam Takibi', ok: Boolean(auditResult.has_pixel), okText: 'Kurulu', failText: 'Kurulu Değil' },
+    { label: 'WhatsApp / Sosyal Medya Önizlemesi', ok: Boolean(auditResult.has_og_tags), okText: 'Mevcut', failText: 'Eksik' },
   ];
 
-  const allEmails: string[] = Array.from(
-    new Set([
-      ...(merchant.email ? [merchant.email] : []),
-      ...(auditResult.scraped_emails || [])
-    ])
-  );
-  const allPhones: string[] = Array.from(
-    new Set([
-      ...(merchant.phone ? [merchant.phone] : []),
-      ...(auditResult.scraped_phones || [])
-    ])
-  );
-  const socialLinks: Record<string, string> = {
-    ...(merchant.instagram ? { instagram: merchant.instagram } : {}),
-    ...(auditResult.social_links || {})
-  };
-  const crawledPages: string[] = auditResult.crawled_pages || [];
-
-  const getWebsiteSourceLabel = (src?: string) => {
-    if (src === 'brand_chain') return 'Kurumsal Zincir Veritabanı';
-    if (src === 'web_search') return 'Derin Web Keşfi ile Bulundu';
-    if (src === 'osm') return 'Harita Kaydı';
-    return null;
-  };
-
-  const websiteSourceLabel = getWebsiteSourceLabel(auditResult.website_source);
-
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-slate-800 w-full max-w-4xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden my-6 max-h-[92vh] flex flex-col">
-        {/* Başlık Çubuğu */}
-        <div className="bg-slate-900 px-6 py-4 border-b border-slate-700 flex justify-between items-center shrink-0">
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="bg-slate-800 w-full max-w-4xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+        {/* Üst Başlık Çubuğu */}
+        <div className="bg-slate-900 px-6 py-5 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4 shrink-0">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                Derinleştirilmiş Web Röntgeni & Kazıyıcı
-              </span>
-              {auditResult.cms_platform && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-purple-300 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30">
-                  <Layers size={12} />
-                  {auditResult.cms_platform}
-                </span>
-              )}
-              {websiteSourceLabel && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-300 bg-blue-500/15 px-2.5 py-0.5 rounded-full border border-blue-500/30">
-                  <Sparkles size={12} />
-                  {websiteSourceLabel}
-                </span>
-              )}
-              {auditResult.response_time_ms != null && (
-                <span className="inline-flex items-center gap-1 text-xs text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                  <Clock size={12} className="text-emerald-400" />
-                  {auditResult.response_time_ms} ms
-                </span>
-              )}
-              {auditResult.http_status && (
-                <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                  HTTP {auditResult.http_status}
-                </span>
-              )}
-            </div>
-            <h2 className="text-xl font-bold text-white mt-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              İşletme İnceleme Raporu
+            </span>
+            <h2 className="text-2xl font-bold text-white mt-2">
               {auditResult.merchantName}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleOpenDemoSite}
+              title="İşletmeye Özel Canlı Örnek Web Sitesi Taslağı Oluştur"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <LayoutTemplate size={16} />
+              <span>Örnek Site Oluştur</span>
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
+              title="İnceleme Raporunu PDF Olarak İndir"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <FileDown size={16} />
+              <span>{isExportingPdf ? 'PDF Hazırlanıyor...' : 'PDF Rapor İndir'}</span>
+            </button>
             {onReAudit && (
               <button
                 onClick={onReAudit}
-                title="Derin Taramayı Yeniden Çalıştır"
-                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 border border-slate-700 transition-colors cursor-pointer"
+                title="İncelemeyi Yenile"
+                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 border border-slate-700 transition-colors cursor-pointer"
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={17} />
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors cursor-pointer"
             >
-              <X size={18} />
+              <X size={19} />
             </button>
           </div>
         </div>
 
-        {/* Kaydırılabilir İçerik */}
-        <div className="p-6 space-y-5 overflow-y-auto flex-1">
-          {/* Otomatik Keşif Bildirim Bandı */}
-          {effectiveWebsite && (auditResult.website_source === 'web_search' || auditResult.website_source === 'brand_chain') && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-2 text-emerald-300">
-                <Sparkles size={16} className="text-emerald-400 shrink-0" />
-                <span>
-                  {auditResult.website_source === 'brand_chain'
-                    ? 'Bu işletmenin kurumsal zincir şubesi olduğu tespit edildi ve resmi web adresi otomatik olarak bağlandı:'
-                    : 'Harita kaydında web sitesi olmamasına rağmen Derin Web Kazıyıcı işletmenin resmi web sitesini otomatik olarak keşfetti:'}
-                </span>
-              </div>
-              <a
-                href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 font-semibold text-emerald-400 hover:underline"
-              >
-                <Globe size={13} />
-                <span>{effectiveWebsite}</span>
-                <ExternalLink size={12} />
-              </a>
+        {/* Göz Yormayan 2 Adımlı Sekme Çubuğu */}
+        <div className="bg-slate-900/70 px-6 py-3 border-b border-slate-700/80 flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setMainTab('overview')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              mainTab === 'overview'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+            }`}
+          >
+            <FileText size={16} />
+            <span>1. İnceleme Özeti ve İletişim</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMainTab('proposal')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              mainTab === 'proposal'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+            }`}
+          >
+            <Wand2 size={16} />
+            <span>2. Hazır Teklif Mesajı Oluştur</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenDemoSite}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              mainTab === 'demo_site'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+            }`}
+          >
+            <LayoutTemplate size={16} />
+            <span>3. Canlı Örnek Site Önizlemesi</span>
+          </button>
+        </div>
+
+        {/* Kaydırılabilir Ana İçerik */}
+        <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1">
+          {pitchStatusMessage && (
+            <div className="px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm flex items-center gap-2">
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>{pitchStatusMessage}</span>
             </div>
           )}
 
-          {/* Üst Özet ve 10 Kriterli Teknik Denetim Karnesi */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Sol: Fırsat Puanı ve Taranan Sayfalar */}
-            <div className="bg-slate-900 p-5 rounded-xl border border-slate-700 flex flex-col items-center justify-center text-center">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Satış Fırsat Puanı
-              </p>
-              <p className="text-5xl font-black text-emerald-400 my-2">
-                {auditResult.score}
-                <span className="text-lg text-slate-500 font-semibold">/100</span>
-              </p>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                {auditResult.score >= 80
-                  ? 'Çok Yüksek Satış Potansiyeli'
-                  : auditResult.score >= 55
-                    ? 'Orta-Yüksek İyileştirme Fırsatı'
-                    : 'Büyüme & Reklam Odaklı Fırsat'}
-              </span>
-
-              {effectiveWebsite && (
-                <a
-                  href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex items-center gap-1 text-xs text-blue-400 hover:underline truncate max-w-full"
-                >
-                  <Globe size={12} />
-                  <span className="truncate">{effectiveWebsite.replace(/^https?:\/\//, '')}</span>
-                  <ExternalLink size={11} />
-                </a>
-              )}
-
-              {crawledPages.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-800 w-full text-left">
-                  <p className="text-[11px] font-semibold text-slate-400 mb-1.5 flex items-center gap-1">
-                    <SearchCode size={12} className="text-emerald-400" />
-                    <span>Kazınan Alt Sayfalar ({crawledPages.length})</span>
+          {mainTab === 'overview' ? (
+            <div className="space-y-6">
+              {/* Bölüm 1: Puan ve Genel Değerlendirme (Ferah Kart) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-900 p-6 rounded-2xl border border-slate-700 flex flex-col items-center justify-center text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    İhtiyaç ve Fırsat Puanı
                   </p>
-                  <div className="flex flex-wrap gap-1">
-                    {crawledPages.map((pg, idx) => (
-                      <span
-                        key={idx}
-                        className="text-[10px] font-mono bg-slate-800 text-emerald-300 px-2 py-0.5 rounded border border-slate-700"
-                      >
-                        {pg}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Sağ: 10 Kriterli Teknik Denetim Karnesi */}
-            <div className="md:col-span-2 bg-slate-900 p-4 rounded-xl border border-slate-700">
-              <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-300 mb-3 pb-2 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <FileCode2 size={15} className="text-emerald-400" />
-                  <span>10 Kriterli Teknik Altyapı, SEO ve Piksel Denetim Karnesi</span>
-                </div>
-                {auditResult.cms_platform && (
-                  <span className="text-[11px] text-slate-400">
-                    Altyapı: <strong className="text-emerald-400">{auditResult.cms_platform}</strong>
+                  <p className="text-5xl font-black text-emerald-400 my-3">
+                    {auditResult.score}
+                    <span className="text-xl text-slate-500 font-semibold">/100</span>
+                  </p>
+                  <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    {auditResult.score >= 80
+                      ? 'Çok Yüksek Satış Fırsatı'
+                      : auditResult.score >= 55
+                        ? 'Orta-Yüksek İyileştirme İhtiyacı'
+                        : 'Tanıtım ve Reklam Fırsatı'}
                   </span>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {checkItems.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`px-3 py-2 rounded-lg border text-xs flex items-center justify-between ${
-                      item.ok
-                        ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
-                        : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
-                    }`}
-                  >
-                    <span className="font-medium text-slate-200">{item.label}</span>
-                    <span className="inline-flex items-center gap-1 font-semibold">
-                      {item.ok ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-                      {item.ok ? item.okText : item.failText}
+
+                  {effectiveWebsite ? (
+                    <a
+                      href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-4 inline-flex items-center gap-1.5 text-xs text-blue-400 hover:underline truncate max-w-full"
+                    >
+                      <Globe size={14} />
+                      <span className="truncate">{effectiveWebsite.replace(/^https?:\/\//, '')}</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  ) : (
+                    <span className="mt-4 text-xs text-amber-400 font-medium">
+                      Aktif Web Sitesi Bulunmuyor
                     </span>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-700 flex flex-col justify-between space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-emerald-400 mb-2">
+                      Genel Değerlendirme
+                    </h3>
+                    <p className="text-slate-200 text-sm leading-relaxed">
+                      {auditResult.ai_summary}
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          {/* Derin İletişim ve Sosyal Medya Kazıyıcı (Deep Web Scraper) Paneli */}
-          <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-                <BarChart3 size={15} />
-                <span>Derin İletişim & Sosyal Medya Kazıyıcı Sonuçları</span>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+                      Yapılabilecek İyileştirmeler
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {(auditResult.opportunities || []).map((opp: string, i: number) => (
+                        <span
+                          key={i}
+                          className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-medium"
+                        >
+                          + {opp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span className="text-[11px] text-slate-400">
-                Ana sayfa ve iletişim alt sayfalarından otomatik çıkarılan veriler
-              </span>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Telefon & WhatsApp Kutusu */}
-              <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-2">
-                <p className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Phone size={12} className="text-emerald-400" />
-                  <span>Telefon & WhatsApp Hatları ({allPhones.length})</span>
-                </p>
-                {allPhones.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">Telefon numarası tespit edilemedi.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {allPhones.map((ph, i) => (
-                      <div
-                        key={`ph-${i}`}
-                        className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded bg-slate-800/90 border border-slate-700 text-xs"
-                      >
-                        <a href={`tel:${ph}`} className="text-slate-200 hover:text-emerald-400 font-medium truncate">
-                          {ph}
-                        </a>
-                        <div className="flex items-center gap-1 shrink-0">
+              {/* Bölüm 2: Bulunan İletişim ve Sosyal Medya Bilgileri (Tekilleştirilmiş & Ferah) */}
+              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-700 space-y-4">
+                <h3 className="text-sm font-bold text-white">
+                  Bulunan İletişim ve Sosyal Medya Bilgileri
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Telefon Numaraları */}
+                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                      <Phone size={14} className="text-emerald-400" />
+                      <span>Telefon ({allPhones.length})</span>
+                    </p>
+                    {allPhones.length === 0 ? (
+                      <p className="text-sm text-slate-500">Telefon numarası bulunamadı.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {allPhones.map((ph, i) => (
+                          <div
+                            key={`ph-${i}`}
+                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-sm"
+                          >
+                            <a href={`tel:${ph}`} className="text-white hover:text-emerald-400 font-medium truncate">
+                              {ph}
+                            </a>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <a
+                                href={`https://wa.me/${formatWhatsAppNumber(ph)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 text-xs font-semibold"
+                              >
+                                WhatsApp
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyValue(ph)}
+                                title="Numarayı Kopyala"
+                                className="p-1 text-slate-400 hover:text-white cursor-pointer"
+                              >
+                                {copiedItem === ph ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* E-posta Adresleri */}
+                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                      <Mail size={14} className="text-blue-400" />
+                      <span>E-posta ({allEmails.length})</span>
+                    </p>
+                    {allEmails.length === 0 ? (
+                      <p className="text-sm text-slate-500">E-posta adresi bulunamadı.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {allEmails.map((em, i) => (
+                          <div
+                            key={`em-${i}`}
+                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-sm"
+                          >
+                            <a
+                              href={`mailto:${em}`}
+                              className="text-white hover:text-blue-400 truncate font-medium"
+                              title={em}
+                            >
+                              {em}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyValue(em)}
+                              title="E-postayı Kopyala"
+                              className="p-1 text-slate-400 hover:text-white cursor-pointer shrink-0"
+                            >
+                              {copiedItem === em ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sosyal Medya Hesapları */}
+                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                      <Globe size={14} className="text-purple-400" />
+                      <span>Sosyal Medya ({Object.keys(socialLinks).length})</span>
+                    </p>
+                    {Object.keys(socialLinks).length === 0 ? (
+                      <p className="text-sm text-slate-500">Sosyal medya hesabı bulunamadı.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(socialLinks).map(([platform, link]) => (
                           <a
-                            href={`https://wa.me/${formatWhatsAppNumber(ph)}`}
+                            key={platform}
+                            href={link}
                             target="_blank"
                             rel="noreferrer"
-                            title="WhatsApp ile Yaz"
-                            className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 text-[10px] font-semibold"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-blue-400 hover:underline capitalize"
                           >
-                            WA
+                            <ExternalLink size={13} />
+                            <span>{platform}</span>
                           </a>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyValue(ph)}
-                            title="Numarayı Kopyala"
-                            className="p-1 text-slate-400 hover:text-white cursor-pointer"
-                          >
-                            {copiedItem === ph ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                          </button>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-                {auditResult.scraped_whatsapp && (
-                  <div className="pt-1">
-                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                      Doğrudan WhatsApp Hattı Aktif: {auditResult.scraped_whatsapp}
+                </div>
+              </div>
+
+              {/* Bölüm 3: Web Sitesi Durum Kontrolü (Ferah Satırlar) */}
+              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-700 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white">
+                    Web Sitesi Durum Kontrolü
+                  </h3>
+                  {auditResult.cms_platform && (
+                    <span className="text-xs text-slate-400">
+                      Altyapı: <strong className="text-emerald-400">{auditResult.cms_platform}</strong>
                     </span>
-                  </div>
-                )}
-              </div>
-
-              {/* E-posta Kutusu */}
-              <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-2">
-                <p className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Mail size={12} className="text-blue-400" />
-                  <span>E-posta Adresleri ({allEmails.length})</span>
-                </p>
-                {allEmails.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">E-posta adresi tespit edilemedi.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {allEmails.map((em, i) => (
-                      <div
-                        key={`em-${i}`}
-                        className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded bg-slate-800/90 border border-slate-700 text-xs"
-                      >
-                        <a
-                          href={`mailto:${em}`}
-                          className="text-slate-200 hover:text-blue-400 truncate font-medium"
-                          title={em}
-                        >
-                          {em}
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyValue(em)}
-                          title="E-postayı Kopyala"
-                          className="p-1 text-slate-400 hover:text-white cursor-pointer shrink-0"
-                        >
-                          {copiedItem === em ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sosyal Medya Kutusu */}
-              <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-2">
-                <p className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
-                  <Globe size={12} className="text-purple-400" />
-                  <span>Sosyal Medya Profilleri ({Object.keys(socialLinks).length})</span>
-                </p>
-                {Object.keys(socialLinks).length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">Sosyal medya bağlantısı bulunamadı.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(socialLinks).map(([platform, link]) => (
-                      <a
-                        key={platform}
-                        href={link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-blue-400 hover:underline capitalize"
-                      >
-                        <ExternalLink size={11} />
-                        <span>{platform}</span>
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sayfa Başlığı, H1 ve Meta Açıklama İçerik Röntgeni */}
-            {(auditResult.page_title || auditResult.h1_text || auditResult.meta_description) && (
-              <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                <div>
-                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">Sayfa Başlığı (Title)</span>
-                  <p className="text-slate-300 mt-0.5 line-clamp-2">{auditResult.page_title || 'Belirtilmemiş'}</p>
+                  )}
                 </div>
-                <div>
-                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">H1 Ana Başlık</span>
-                  <p className="text-slate-300 mt-0.5 line-clamp-2">{auditResult.h1_text || 'Belirtilmemiş'}</p>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">Meta Açıklama (SEO)</span>
-                  <p className="text-slate-300 mt-0.5 line-clamp-2">{auditResult.meta_description || 'Belirtilmemiş'}</p>
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Analiz Özeti & Satılabilir Hizmetler */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-400 mb-2">
-                Teftiş ve Analiz Özeti
-              </h3>
-              <p className="text-slate-300 text-xs leading-relaxed">
-                {auditResult.ai_summary}
-              </p>
-            </div>
-
-            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-400 mb-2">
-                Önerilen Hizmet Teklifleri (Fırsatlar)
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {(auditResult.opportunities || []).map((opp: string, i: number) => (
-                  <span
-                    key={i}
-                    className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-medium"
-                  >
-                    + {opp}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* YAPAY ZEKA (GOOGLE GEMINI) DESTEKLİ KİŞİSELLEŞTİRİLMİŞ TEKLİF ÜRETİCİ STÜDYOSU */}
-          <div className="bg-slate-900 rounded-xl border border-emerald-500/40 shadow-lg overflow-hidden">
-            {/* Üst Başlık ve Gemini Durum Çubuğu */}
-            <div className="px-4 py-3 bg-gradient-to-r from-emerald-950/70 via-slate-900 to-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                  <Wand2 size={15} />
-                </div>
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                    <span>Yapay Zeka (Google Gemini) Kişiselleştirilmiş Teklif Üretici</span>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
-                        aiStatus.configured || engineUsed === 'google_gemini'
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                          : 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {checkItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`px-4 py-3 rounded-xl border text-sm flex items-center justify-between ${
+                        item.ok
+                          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
+                          : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
                       }`}
                     >
-                      {aiStatus.configured || engineUsed === 'google_gemini'
-                        ? 'Google Gemini 2.5 Flash Aktif'
-                        : 'Akıllı Hibrit AI Motoru Aktif'}
-                    </span>
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    İşletmenin röntgen bulgularına, seçtiğiniz üsluba ve hizmet paketine göre 4 farklı kanalda satış teklifi üretir.
-                  </p>
+                      <span className="font-medium text-slate-100">{item.label}</span>
+                      <span className="inline-flex items-center gap-1.5 font-semibold text-xs">
+                        {item.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                        {item.ok ? item.okText : item.failText}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Teklif Sekmesine Geçiş Çağrısı */}
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-bold text-white">
+                    Bu İşletmeye Gönderilecek Teklif Mesajınız Hazır
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    WhatsApp, E-posta, Instagram veya Telefon görüşmesi için hazırlanan teklif metnini inceleyip hemen gönderebilirsiniz.
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowAdvancedParams(!showAdvancedParams)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                    showAdvancedParams
-                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                      : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
-                  }`}
+                  onClick={() => setMainTab('proposal')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
                 >
-                  <SlidersHorizontal size={13} />
-                  <span>Ajans & Kampanya Ayarları</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeyModal(!showApiKeyModal)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition-colors cursor-pointer"
-                  title="Google Gemini API Anahtarını Yapılandır"
-                >
-                  <KeyRound size={13} className="text-emerald-400" />
-                  <span>{aiStatus.configured ? `API (${aiStatus.masked_key})` : 'Gemini API Anahtarı'}</span>
+                  <span>Teklif Mesajını Aç</span>
+                  <ArrowRight size={16} />
                 </button>
               </div>
             </div>
-
-            {/* Gemini API Anahtarı Ayar Çekmecesi */}
-            {showApiKeyModal && (
-              <form
-                onSubmit={handleSaveApiKey}
-                className="p-4 bg-slate-950/90 border-b border-slate-800 space-y-2.5 text-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-emerald-400">
-                    Google Gemini API Anahtarı Yapılandırması (gemini-2.5-flash)
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    Anahtarınız sunucu .env dosyasına güvenli şekilde kaydedilir
-                  </span>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="password"
-                    value={apiKeyInput}
-                    onChange={e => setApiKeyInput(e.target.value)}
-                    placeholder="Google AI Studio API Anahtarınızı girin (AIzaSy...)"
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isSavingApiKey}
-                    className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold cursor-pointer disabled:opacity-50"
-                  >
-                    {isSavingApiKey ? 'Kaydediliyor...' : 'Anahtarı Kaydet'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* Teklif Parametre Seçicileri (Üslup, Odak Paket ve Yeniden Üret Butonu) */}
-            <div className="p-4 bg-slate-950/40 border-b border-slate-800 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                <div className="md:col-span-4">
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    Teklif Üslubu / İletişim Tonu
-                  </label>
-                  <select
-                    value={tone}
-                    onChange={e => setTone(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
-                  >
-                    <option value="kurumsal">Kurumsal & Resmi Danışmanlık Dili</option>
-                    <option value="samimi">Samimi, Esnaf Dostu & Güven Veren Dil</option>
-                    <option value="ikna_edici">İkna Edici & Ciro / Rakip Vurgulu Dil</option>
-                    <option value="kisa_net">Kısa, Net & Doğrudan Randevu Odaklı</option>
-                  </select>
+          ) : mainTab === 'proposal' ? (
+            /* SEKME 2: HAZIR TEKLİF MESAJI OLUŞTURUCU (Ferah Görünüm) */
+            <div className="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden">
+              <div className="px-6 py-4 bg-slate-950/60 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Hazır Teklif Mesajı Oluşturucu
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Konuşma dilini ve önermek istediğiniz hizmeti seçerek mesajı istediğiniz gibi yenileyebilirsiniz.
+                  </p>
                 </div>
 
-                <div className="md:col-span-5">
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    Odaklanılacak Dijital Hizmet Paketi
-                  </label>
-                  <select
-                    value={focusService}
-                    onChange={e => setFocusService(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
-                  >
-                    <option value="auto">Otomatik (Röntgen Eksiklerine Göre En Uygun Paket)</option>
-                    <option value="web_tasarim">Yeni Nesil Mobil Uyumlu Web Sitesi & Kurumsal Kimlik</option>
-                    <option value="yerel_seo">Google Haritalar (Yerel SEO) & Bölgesel Müşteri Kazanımı</option>
-                    <option value="performans_reklam">Instagram / Google Ads & Meta Pixel Dönüşüm Paketi</option>
-                    <option value="e_ticaret">Online Sipariş / Rezervasyon & WhatsApp Satış Otomasyonu</option>
-                  </select>
-                </div>
-
-                <div className="md:col-span-3">
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={handleGenerateAiPitch}
-                    disabled={isGeneratingPitch}
-                    className="w-full flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 px-3 rounded-lg text-xs transition-colors cursor-pointer disabled:opacity-50 shadow-md shadow-emerald-500/20"
+                    onClick={() => setShowAdvancedParams(!showAdvancedParams)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
+                      showAdvancedParams
+                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                    }`}
                   >
-                    <Sparkles size={14} className={isGeneratingPitch ? 'animate-spin' : ''} />
-                    <span>{isGeneratingPitch ? 'Teklif Üretiliyor...' : 'Yapay Zeka ile Üret'}</span>
+                    <SlidersHorizontal size={14} />
+                    <span>Gönderen ve Kampanya Bilgisi</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKeyModal(!showApiKeyModal)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition-colors cursor-pointer"
+                  >
+                    <KeyRound size={14} className="text-emerald-400" />
+                    <span>{aiStatus.configured ? 'Gemini Ayarlı' : 'Gemini Anahtarı'}</span>
                   </button>
                 </div>
               </div>
 
-              {/* Gelişmiş Ajans / Kampanya / Özel Talimat Alanları */}
-              {showAdvancedParams && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80 text-xs">
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Gönderici / Danışman Adı</label>
-                    <input
-                      type="text"
-                      value={senderName}
-                      onChange={e => setSenderName(e.target.value)}
-                      placeholder="Örn: Ahmet Yılmaz"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                    />
+              {showApiKeyModal && (
+                <form
+                  onSubmit={handleSaveApiKey}
+                  className="p-5 bg-slate-950/90 border-b border-slate-800 space-y-3 text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-emerald-400">
+                      Google Gemini Anahtarı (İsteğe Bağlı)
+                    </span>
+                    <span className="text-slate-400">
+                      Anahtar girmezseniz sistem kendi akıllı şablonlarıyla teklif üretmeye devam eder
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Ajans / Firma Adı</label>
+                  <div className="flex flex-col sm:flex-row gap-2.5">
                     <input
-                      type="text"
-                      value={agencyName}
-                      onChange={e => setAgencyName(e.target.value)}
-                      placeholder="Örn: Nova Dijital Ajans"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      type="password"
+                      value={apiKeyInput}
+                      onChange={e => setApiKeyInput(e.target.value)}
+                      placeholder="Google Gemini anahtarınızı buraya yapıştırın (AIzaSy...)"
+                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
                     />
+                    <button
+                      type="submit"
+                      disabled={isSavingApiKey}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingApiKey ? 'Kaydediliyor...' : 'Kaydet'}
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Özel Kampanya / İndirim Fırsatı</label>
-                    <input
-                      type="text"
-                      value={specialOffer}
-                      onChange={e => setSpecialOffer(e.target.value)}
-                      placeholder="Örn: Bu haftaya özel ücretsiz Google Harita SEO kaydı hediye"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Ek Yapay Zeka Talimatı (İsteğe Bağlı)</label>
-                    <input
-                      type="text"
-                      value={customInstruction}
-                      onChange={e => setCustomInstruction(e.target.value)}
-                      placeholder="Örn: Online randevu modülüne özellikle vurgu yap"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
+                </form>
               )}
 
-              {pitchStatusMessage && (
-                <div className="px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-                  <CheckCircle2 size={14} className="shrink-0" />
-                  <span>{pitchStatusMessage}</span>
-                </div>
-              )}
+              {/* Ayar Seçicileri */}
+              <div className="p-6 bg-slate-950/30 border-b border-slate-800 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                  <div className="md:col-span-4">
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Konuşma Dili
+                    </label>
+                    <select
+                      value={tone}
+                      onChange={e => setTone(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    >
+                      <option value="kurumsal">Kurumsal ve Saygılı</option>
+                      <option value="samimi">Samimi ve Esnaf Dostu</option>
+                      <option value="ikna_edici">İkna Edici ve Kazanç Odaklı</option>
+                      <option value="kisa_net">Kısa ve Doğrudan Sonuç Odaklı</option>
+                    </select>
+                  </div>
 
-              {/* Önerilen Paket ve Değer Önerisi Özeti */}
-              {recommendedPackage && (
-                <div className="bg-slate-900/90 p-3 rounded-lg border border-slate-800 space-y-1.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-slate-400">
+                  <div className="md:col-span-5">
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Önerilecek Hizmet
+                    </label>
+                    <select
+                      value={focusService}
+                      onChange={e => setFocusService(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                    >
+                      <option value="auto">Otomatik (Eksiklere Göre En Uygunu)</option>
+                      <option value="web_tasarim">Telefon Uyumlu Yeni Web Sitesi</option>
+                      <option value="yerel_seo">Google Harita ve Üst Sıra Çalışması</option>
+                      <option value="performans_reklam">Instagram ve Google Reklam Yönetimi</option>
+                      <option value="e_ticaret">Online Sipariş / Randevu ve WhatsApp Hattı</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-3">
+                    <button
+                      type="button"
+                      onClick={handleGenerateAiPitch}
+                      disabled={isGeneratingPitch}
+                      className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-md shadow-emerald-500/20"
+                    >
+                      <Sparkles size={16} className={isGeneratingPitch ? 'animate-spin' : ''} />
+                      <span>{isGeneratingPitch ? 'Hazırlanıyor...' : 'Teklifi Yenile'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {showAdvancedParams && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-800/80">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Adınız Soyadınız</label>
+                      <input
+                        type="text"
+                        value={senderName}
+                        onChange={e => setSenderName(e.target.value)}
+                        placeholder="Örn: Ahmet Yılmaz"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Firma / Ekip Adınız</label>
+                      <input
+                        type="text"
+                        value={agencyName}
+                        onChange={e => setAgencyName(e.target.value)}
+                        placeholder="Örn: Nova Web Tasarım"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Özel İndirim veya Hediye Notu</label>
+                      <input
+                        type="text"
+                        value={specialOffer}
+                        onChange={e => setSpecialOffer(e.target.value)}
+                        placeholder="Örn: Bu haftaya özel Google Harita kaydı ücretsiz"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">Eklemek İstediğiniz Özel Not</label>
+                      <input
+                        type="text"
+                        value={customInstruction}
+                        onChange={e => setCustomInstruction(e.target.value)}
+                        placeholder="Örn: Paket servis siparişlerine vurgu yap"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {recommendedPackage && (
+                  <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-slate-400">
                       Önerilen Çözüm Paketi:
                     </span>
-                    <span className="text-xs font-bold text-emerald-400">
+                    <span className="text-sm font-bold text-emerald-400">
                       {recommendedPackage}
                     </span>
                   </div>
-                  {valuePropositions.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-1">
-                      {valuePropositions.map((vp, idx) => (
-                        <div
-                          key={idx}
-                          className="text-[11px] text-slate-300 bg-slate-950/60 px-2.5 py-1.5 rounded border border-slate-800/80"
-                        >
-                          • {vp}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* 4 Kanallı Teklif Sekmeleri */}
-            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-slate-950/60 border-b border-slate-800">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setPitchTab('whatsapp')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    pitchTab === 'whatsapp'
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-slate-400 hover:text-white bg-slate-800'
-                  }`}
-                >
-                  <MessageSquare size={13} />
-                  <span>WhatsApp Mesajı</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPitchTab('email')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    pitchTab === 'email'
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-slate-400 hover:text-white bg-slate-800'
-                  }`}
-                >
-                  <Mail size={13} />
-                  <span>Kurumsal E-posta</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPitchTab('instagram')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    pitchTab === 'instagram'
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-slate-400 hover:text-white bg-slate-800'
-                  }`}
-                >
-                  <Send size={13} />
-                  <span>Instagram DM</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPitchTab('cold_call')}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                    pitchTab === 'cold_call'
-                      ? 'bg-emerald-500 text-white'
-                      : 'text-slate-400 hover:text-white bg-slate-800'
-                  }`}
-                >
-                  <PhoneCall size={13} />
-                  <span>Telefon Senaryosu</span>
-                </button>
+                )}
               </div>
 
-              <button
-                type="button"
-                onClick={handleCopyPitch}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-emerald-400 border border-slate-700 transition-colors cursor-pointer"
-              >
-                {copied ? <Check size={13} /> : <Copy size={13} />}
-                <span>{copied ? 'Kopyalandı' : 'Metni Kopyala'}</span>
-              </button>
-            </div>
-
-            {/* Düzenlenebilir Teklif İçeriği ve Hızlı Gönderim Aksiyonları */}
-            <div className="p-4 space-y-3">
-              {pitchTab === 'email' && (
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    E-posta Konu Başlığı
-                  </label>
-                  <input
-                    type="text"
-                    value={emailSubject}
-                    onChange={e => setEmailSubject(e.target.value)}
-                    className="w-full bg-slate-950/70 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-semibold text-slate-400">
-                    {pitchTab === 'whatsapp'
-                      ? 'WhatsApp Teklif Metni (Göndermeden önce düzenleyebilirsiniz)'
-                      : pitchTab === 'email'
-                        ? 'Kurumsal E-posta Gövdesi (Göndermeden önce düzenleyebilirsiniz)'
-                        : pitchTab === 'instagram'
-                          ? 'Instagram DM Satış Mesajı'
-                          : 'Adım Adım Telefon Satış Konuşma Rehberi'}
-                  </span>
-                </div>
-                <textarea
-                  rows={pitchTab === 'email' || pitchTab === 'cold_call' ? 8 : 5}
-                  value={getActivePitchText()}
-                  onChange={e => setActivePitchText(e.target.value)}
-                  className="w-full text-xs text-slate-100 font-sans leading-relaxed bg-slate-950/70 p-3.5 rounded-lg border border-slate-800 focus:outline-none focus:border-emerald-500 resize-y"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {waUrl && (
-                  <a
-                    href={waUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
+              {/* 4 Kanal Seçici */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-3.5 bg-slate-950/60 border-b border-slate-800">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPitchTab('whatsapp')}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                      pitchTab === 'whatsapp'
+                        ? 'bg-emerald-500 text-white'
+                        : 'text-slate-300 hover:text-white bg-slate-800'
+                    }`}
                   >
                     <MessageSquare size={14} />
-                    <span>WhatsApp ile Doğrudan Gönder ({effectivePhone})</span>
-                  </a>
-                )}
-                {mailUrl && (
-                  <a
-                    href={mailUrl}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                    <span>WhatsApp Mesajı</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPitchTab('email')}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                      pitchTab === 'email'
+                        ? 'bg-emerald-500 text-white'
+                        : 'text-slate-300 hover:text-white bg-slate-800'
+                    }`}
                   >
                     <Mail size={14} />
-                    <span>E-posta İstemcisinde Aç ({effectiveEmail})</span>
-                  </a>
-                )}
-                {socialLinks.instagram && (
-                  <a
-                    href={socialLinks.instagram}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors"
+                    <span>E-posta Yazısı</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPitchTab('instagram')}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                      pitchTab === 'instagram'
+                        ? 'bg-emerald-500 text-white'
+                        : 'text-slate-300 hover:text-white bg-slate-800'
+                    }`}
                   >
                     <Send size={14} />
-                    <span>Instagram Profilini Aç</span>
-                  </a>
-                )}
-                {effectivePhone && (
-                  <a
-                    href={`tel:${effectivePhone}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-colors"
+                    <span>Instagram Mesajı</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPitchTab('cold_call')}
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                      pitchTab === 'cold_call'
+                        ? 'bg-emerald-500 text-white'
+                        : 'text-slate-300 hover:text-white bg-slate-800'
+                    }`}
                   >
-                    <PhoneCall size={14} className="text-emerald-400" />
-                    <span>İşletmeyi Ara ({effectivePhone})</span>
-                  </a>
+                    <PhoneCall size={14} />
+                    <span>Telefon Konuşma Metni</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCopyPitch}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-emerald-400 border border-slate-700 transition-colors cursor-pointer"
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  <span>{copied ? 'Kopyalandı' : 'Yazıyı Kopyala'}</span>
+                </button>
+              </div>
+
+              {/* Mesaj Alanı ve Gönderim Butonları */}
+              <div className="p-6 space-y-4">
+                {pitchTab === 'email' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                      E-posta Konusu
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSubject}
+                      onChange={e => setEmailSubject(e.target.value)}
+                      className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
                 )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                    {pitchTab === 'whatsapp'
+                      ? 'WhatsApp Mesajı (Göndermeden önce üzerinde değişiklik yapabilirsiniz)'
+                      : pitchTab === 'email'
+                        ? 'E-posta Metni (Göndermeden önce üzerinde değişiklik yapabilirsiniz)'
+                        : pitchTab === 'instagram'
+                          ? 'Instagram Mesajı'
+                          : 'Telefonla Aradığınızda Söyleyebileceğiniz Konuşma Metni'}
+                  </label>
+                  <textarea
+                    rows={pitchTab === 'email' || pitchTab === 'cold_call' ? 9 : 6}
+                    value={getActivePitchText()}
+                    onChange={e => setActivePitchText(e.target.value)}
+                    className="w-full text-sm text-slate-100 font-sans leading-relaxed bg-slate-950/70 p-4 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 resize-y"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  {waUrl && (
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors"
+                    >
+                      <MessageSquare size={16} />
+                      <span>WhatsApp ile Gönder ({effectivePhone})</span>
+                    </a>
+                  )}
+                  {mailUrl && (
+                    <a
+                      href={mailUrl}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
+                    >
+                      <Mail size={16} />
+                      <span>E-posta Gönder ({effectiveEmail})</span>
+                    </a>
+                  )}
+                  {socialLinks.instagram && (
+                    <a
+                      href={socialLinks.instagram}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold transition-colors"
+                    >
+                      <Send size={16} />
+                      <span>Instagram Sayfasını Aç</span>
+                    </a>
+                  )}
+                  {effectivePhone && (
+                    <a
+                      href={`tel:${effectivePhone}`}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm font-semibold transition-colors"
+                    >
+                      <PhoneCall size={16} className="text-emerald-400" />
+                      <span>Telefonla Ara ({effectivePhone})</span>
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* SEKME 3: CANLI ÖRNEK SİTE ÖNİZLEMESİ */
+            <div className="space-y-4">
+              <div className="bg-slate-900 p-4 rounded-2xl border border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white">
+                    {auditResult.merchantName} — Örnek Web Sitesi Taslağı
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    İşletmenin adı, sektörü, telefonu, adresi ve çalışma saatleri kullanılarak otomatik oluşturuldu.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                    <button
+                      type="button"
+                      onClick={() => setDemoPreviewDevice('desktop')}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                        demoPreviewDevice === 'desktop'
+                          ? 'bg-emerald-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Monitor size={14} />
+                      <span>Bilgisayar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDemoPreviewDevice('mobile')}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                        demoPreviewDevice === 'mobile'
+                          ? 'bg-emerald-500 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Smartphone size={14} />
+                      <span>Telefon</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenDemoInNewTab}
+                    disabled={!demoSiteHtml}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    <ExternalLink size={14} />
+                    <span>Yeni Sekmede Tam Ekran Aç</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadDemoHtml}
+                    disabled={!demoSiteHtml}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                  >
+                    <FileDown size={14} />
+                    <span>Taslak Siteyi İndir (.html)</span>
+                  </button>
+                </div>
+              </div>
+
+              {isGeneratingDemoSite ? (
+                <div className="bg-slate-900 border border-slate-700 rounded-2xl p-16 text-center text-slate-300 animate-pulse">
+                  İşletmeye özel örnek web sitesi hazırlanıyor...
+                </div>
+              ) : demoSiteHtml ? (
+                <div className="bg-slate-950 border border-slate-700 rounded-2xl p-4 flex justify-center overflow-hidden">
+                  <iframe
+                    title={`${auditResult.merchantName} Örnek Web Sitesi`}
+                    srcDoc={demoSiteHtml}
+                    className={`bg-white rounded-xl border border-slate-700 shadow-2xl transition-all duration-200 ${
+                      demoPreviewDevice === 'mobile'
+                        ? 'w-[390px] h-[640px]'
+                        : 'w-full h-[560px]'
+                    }`}
+                  />
+                </div>
+              ) : (
+                <div className="bg-slate-900 border border-slate-700 rounded-2xl p-12 text-center text-slate-400 text-sm">
+                  Örnek site önizlemesi yüklenemedi.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Alt Aksiyon Çubuğu */}
-        <div className="px-6 py-4 border-t border-slate-700 bg-slate-900 flex items-center justify-between gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-slate-700 bg-slate-900 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <button
             onClick={onClose}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
           >
             Kapat
           </button>
-          <button
-            onClick={onSaveLead}
-            disabled={isSavingLead || saveLeadSuccess}
-            className={`px-5 py-2.5 rounded-lg transition-colors text-xs font-semibold flex items-center gap-2 cursor-pointer ${
-              saveLeadSuccess
-                ? 'bg-emerald-600 text-white'
-                : 'bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 shadow-lg shadow-emerald-500/20'
-            }`}
-          >
-            <BookmarkPlus size={16} />
-            <span>
-              {isSavingLead
-                ? 'Kaydediliyor...'
-                : saveLeadSuccess
-                  ? 'Müşteri Listenize Kaydedildi'
-                  : 'Listeme Kaydet (CRM)'}
-            </span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleOpenDemoSite}
+              title="İşletmeye Özel Canlı Örnek Web Sitesi Taslağı Oluştur"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <LayoutTemplate size={16} />
+              <span>Örnek Site Oluştur</span>
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isExportingPdf}
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/40 text-sm font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <FileDown size={16} />
+              <span>{isExportingPdf ? 'PDF İndiriliyor...' : 'PDF Rapor İndir'}</span>
+            </button>
+            <button
+              onClick={onSaveLead}
+              disabled={isSavingLead || saveLeadSuccess}
+              className={`px-5 py-2.5 rounded-xl transition-colors text-sm font-semibold flex items-center gap-2 cursor-pointer ${
+                saveLeadSuccess
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 shadow-lg shadow-emerald-500/20'
+              }`}
+            >
+              <BookmarkPlus size={17} />
+              <span>
+                {isSavingLead
+                  ? 'Kaydediliyor...'
+                  : saveLeadSuccess
+                    ? 'Listeye Kaydedildi'
+                    : 'Listeme Kaydet'}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

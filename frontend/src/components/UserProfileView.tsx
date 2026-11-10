@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUserProfile, updateUserProfile } from '../api';
-import { User, KeyRound, Calendar, Database, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { User, KeyRound, Database, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface UserProfileViewProps {
   token: string;
@@ -144,21 +144,13 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
         </div>
 
         {/* İstatistik Rozetleri */}
-        <div className="grid grid-cols-2 gap-3 w-full md:w-auto">
+        <div className="grid grid-cols-1 gap-3 w-full md:w-auto">
           <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 text-center min-w-[120px]">
             <p className="text-xs text-slate-400 flex items-center justify-center gap-1">
-              <Database size={13} className="text-emerald-400" /> Kayıtlı Lead
+              <Database size={13} className="text-emerald-400" /> Kayıtlı Müşterilerim
             </p>
             <p className="text-xl font-extrabold text-white mt-0.5">
               {profile?.saved_leads_count || 0}
-            </p>
-          </div>
-          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 text-center min-w-[120px]">
-            <p className="text-xs text-slate-400 flex items-center justify-center gap-1">
-              <Calendar size={13} className="text-blue-400" /> Taramalar
-            </p>
-            <p className="text-xl font-extrabold text-white mt-0.5">
-              {profile?.scans_count || 0}
             </p>
           </div>
         </div>
@@ -318,7 +310,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
                         />
                       ))}
                     </div>
-                    <div className="grid grid-cols-2 gap-1 text-[11px] text-slate-400 pt-1">
+                    <div className="grid grid-cols-1 gap-1 text-[11px] text-slate-400 pt-1">
                       {rules.map((r, i) => (
                         <span key={i} className={r.valid ? "text-emerald-400" : "text-slate-500"}>
                           {r.valid ? "✓" : "○"} {r.label}

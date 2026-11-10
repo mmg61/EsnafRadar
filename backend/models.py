@@ -21,7 +21,6 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     saved_leads = relationship("SavedLead", back_populates="user", cascade="all, delete-orphan")
-    scan_history = relationship("ScanHistory", back_populates="user", cascade="all, delete-orphan")
 
 
 class Merchant(Base):
@@ -39,7 +38,7 @@ class Merchant(Base):
     website = Column(String)
     address = Column(String)
     
-    audit_data = Column(JSON) # Dijital röntgen sonuçları
+    audit_data = Column(JSON)
     last_scanned_at = Column(DateTime, default=datetime.utcnow)
     
     saved_leads = relationship("SavedLead", back_populates="merchant")
@@ -52,9 +51,13 @@ class SavedLead(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     merchant_id = Column(Integer, ForeignKey("merchants.id"))
     
-    status = Column(String, default="new") # new, contacted, interested, converted, rejected
+    status = Column(String, default="new")
     opportunity_score = Column(Integer, default=0)
     saved_at = Column(DateTime, default=datetime.utcnow)
+
+    reminder_at = Column(DateTime, nullable=True)
+    reminder_note = Column(String, nullable=True)
+    reminder_completed = Column(Boolean, default=False)
 
     user = relationship("User", back_populates="saved_leads")
     merchant = relationship("Merchant", back_populates="saved_leads")
@@ -80,24 +83,9 @@ class OutreachLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     saved_lead_id = Column(Integer, ForeignKey("saved_leads.id"))
-    channel = Column(String) # WhatsApp, Email
+    channel = Column(String)
     message_content = Column(Text)
     is_ai_generated = Column(Boolean, default=False)
     sent_at = Column(DateTime, default=datetime.utcnow)
     
     saved_lead = relationship("SavedLead", back_populates="outreach_logs")
-
-
-class ScanHistory(Base):
-    __tablename__ = "scan_history"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    search_lat = Column(Float)
-    search_lng = Column(Float)
-    radius_meters = Column(Integer)
-    category_filter = Column(String)
-    results_count = Column(Integer)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    user = relationship("User", back_populates="scan_history")

@@ -26,7 +26,6 @@ class UserResponse(BaseModel):
 
 class UserProfileResponse(UserResponse):
     saved_leads_count: int = 0
-    scans_count: int = 0
 
 class UserUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -158,18 +157,6 @@ class PitchGenerateResponse(BaseModel):
     instagram_dm_pitch: str
     cold_call_script: str
 
-class ScanHistoryResponse(BaseModel):
-    id: int
-    search_lat: float
-    search_lng: float
-    radius_meters: int
-    category_filter: Optional[str] = "all"
-    results_count: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
 class MerchantResponse(MerchantBase):
     id: int
     audit_data: Optional[Any] = None
@@ -194,6 +181,11 @@ class LeadSaveRequest(BaseModel):
 
 class LeadStatusUpdate(BaseModel):
     status: str
+
+class LeadReminderUpdate(BaseModel):
+    reminder_at: Optional[datetime] = None
+    reminder_note: Optional[str] = None
+    reminder_completed: Optional[bool] = False
 
 class LeadNoteCreate(BaseModel):
     content: str
@@ -235,9 +227,55 @@ class SavedLeadResponse(BaseModel):
     status: str
     opportunity_score: int
     saved_at: datetime
+    reminder_at: Optional[datetime] = None
+    reminder_note: Optional[str] = None
+    reminder_completed: Optional[bool] = False
     merchant: MerchantResponse
     notes: List[LeadNoteResponse] = []
     outreach_logs: List[OutreachLogResponse] = []
 
     class Config:
         from_attributes = True
+
+
+class PdfExportRequest(BaseModel):
+    merchant_name: str
+    category: Optional[str] = None
+    website: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    score: Optional[int] = 0
+    has_website: Optional[bool] = False
+    ssl_valid: Optional[bool] = False
+    mobile_ready: Optional[bool] = False
+    has_title: Optional[bool] = False
+    has_meta_description: Optional[bool] = False
+    has_h1: Optional[bool] = False
+    has_og_tags: Optional[bool] = False
+    has_schema: Optional[bool] = False
+    has_analytics: Optional[bool] = False
+    has_pixel: Optional[bool] = False
+    ai_summary: Optional[str] = None
+    recommended_package: Optional[str] = None
+    detected_pain_points: List[str] = []
+    opportunities: List[str] = []
+    value_propositions: List[str] = []
+    whatsapp_pitch: Optional[str] = None
+    sales_pitch_whatsapp: Optional[str] = None
+
+
+class DemoSiteRequest(BaseModel):
+    merchant_name: str
+    category: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    opening_hours: Optional[str] = None
+    instagram: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class DemoSiteResponse(BaseModel):
+    merchant_name: str
+    html_content: str

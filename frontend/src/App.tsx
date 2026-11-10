@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { scanMerchants, auditMerchant, getScanHistory, deleteScanHistoryItem, loginUser, registerUser, getUserProfile, saveLead, forgotPassword, resetPassword } from './api';
+import { scanMerchants, auditMerchant, loginUser, registerUser, getUserProfile, saveLead, forgotPassword, resetPassword, getSavedLeads } from './api';
 import MapRadar from './components/MapRadar';
 import { SavedLeadsCRM } from './components/SavedLeadsCRM';
 import { UserProfileView } from './components/UserProfileView';
 import { AuditModal } from './components/AuditModal';
-import { Radar, Search, User, Compass, Users, Eye, EyeOff, ArrowLeft, CheckCircle2, Check, Circle, AlertCircle, ClipboardPaste, MapPin, Globe, Layers, History, Trash2 } from 'lucide-react';
+import { Radar, Search, User, Compass, Users, Eye, EyeOff, ArrowLeft, CheckCircle2, Check, Circle, AlertCircle, ClipboardPaste, MapPin, Globe, Layers, Bell } from 'lucide-react';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
@@ -164,8 +164,6 @@ function App() {
   const [filterOnlyNoWebsite, setFilterOnlyNoWebsite] = useState<boolean>(false);
   const [filterOnlyWithPhone, setFilterOnlyWithPhone] = useState<boolean>(false);
   const [hideCorporateChains, setHideCorporateChains] = useState<boolean>(false);
-  const [scanHistory, setScanHistory] = useState<any[]>([]);
-  const [showHistory, setShowHistory] = useState<boolean>(false);
 
   // Toast bildirim state
   const [appToast, setAppToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -179,17 +177,44 @@ function App() {
   const [isSavingLead, setIsSavingLead] = useState(false);
   const [saveLeadSuccess, setSaveLeadSuccess] = useState(false);
   const [savedLeadCount, setSavedLeadCount] = useState(0);
+  const [dueReminderCount, setDueReminderCount] = useState(0);
+  const notifiedLeadIdsRef = React.useRef<Set<number>>(new Set());
+
+  const checkDueReminders = React.useCallback(async (activeToken: string) => {
+    try {
+      const leads = await getSavedLeads(activeToken);
+      setSavedLeadCount(leads.length);
+      const now = Date.now();
+      const due = leads.filter(
+        (l: any) => l.reminder_at && !l.reminder_completed && new Date(l.reminder_at).getTime() <= now
+      );
+      setDueReminderCount(due.length);
+      for (const item of due) {
+        if (!notifiedLeadIdsRef.current.has(item.id)) {
+          notifiedLeadIdsRef.current.add(item.id);
+          const msg = `${item.merchant?.name || 'Müşteri'} için geri arama zamanı geldi: ${item.reminder_note || 'Takip yapılacak'}`;
+          showAppToast('success', msg);
+          if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification('EsnafRadar - Geri Arama Hatırlatıcısı', { body: msg });
+            } catch (_) {}
+          }
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  React.useEffect(() => {
+    if (!token) return;
+    checkDueReminders(token);
+    const interval = setInterval(() => checkDueReminders(token), 45000);
+    return () => clearInterval(interval);
+  }, [token, checkDueReminders]);
 
   // Audit state
   const [isAuditing, setIsAuditing] = useState(false);
   const [auditResult, setAuditResult] = useState<any | null>(null);
 
-  const loadScanHistory = async (activeToken: string) => {
-    try {
-      const hist = await getScanHistory(activeToken);
-      setScanHistory(hist);
-    } catch (_) {}
-  };
 
   // Açılışta oturum (JWT token) doğrulama ve kayıtlı müşteri sayısını yükleme
   React.useEffect(() => {
@@ -199,7 +224,7 @@ function App() {
         if (typeof profile.saved_leads_count === 'number') {
           setSavedLeadCount(profile.saved_leads_count);
         }
-        loadScanHistory(token);
+        // Oturum doğrulandı
       })
       .catch(() => {
         setToken(null);
@@ -467,7 +492,7 @@ function App() {
     try {
       const results = await scanMerchants(targetLat, targetLon, targetRadius, token, targetCategory);
       setMerchants(results);
-      loadScanHistory(token);
+
       showAppToast('success', `${results.length} yerel işletme tespit edildi.`);
     } catch (err: any) {
       showAppToast('error', err.message || "Tarama sırasında hata oluştu.");
@@ -476,25 +501,6 @@ function App() {
     }
   };
 
-  const handleApplyHistoryItem = (item: any) => {
-    const newCenter: [number, number] = [item.search_lat, item.search_lng];
-    const newRadius = item.radius_meters || 500;
-    const newCat = item.category_filter || 'all';
-    setCenter(newCenter);
-    setRadius(newRadius);
-    setSelectedCategory(newCat);
-    setShowHistory(false);
-    handleScan(newCenter, newRadius, newCat);
-  };
-
-  const handleDeleteHistory = async (scanId: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!token) return;
-    try {
-      await deleteScanHistoryItem(scanId, token);
-      setScanHistory(prev => prev.filter(s => s.id !== scanId));
-    } catch (_) {}
-  };
 
   const filteredMerchants = merchants.filter(m => {
     const q = searchQuery.toLowerCase().trim();
@@ -1180,8 +1186,8 @@ function App() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center">
           <div className="bg-slate-800 p-8 rounded-2xl border border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.2)] animate-pulse flex flex-col items-center">
             <Radar size={48} className="text-emerald-500 animate-spin mb-4" />
-            <h2 className="text-xl font-bold text-white">Dijital Röntgen Çekiliyor...</h2>
-            <p className="text-slate-400 mt-2 text-sm">Web sitesi, SSL, mobil uyumluluk, SEO etiketleri ve iletişim kanalları analiz ediliyor.</p>
+            <h2 className="text-xl font-bold text-white">İşletme İnceleniyor...</h2>
+            <p className="text-slate-400 mt-2 text-sm">Web sitesi, telefon uyumu, Google görünürlüğü ve iletişim bilgileri kontrol ediliyor.</p>
           </div>
         </div>
       )}
@@ -1230,7 +1236,16 @@ function App() {
                 }`}
               >
                 <Users size={16} />
-                <span>Kayıtlı Müşterilerim (CRM)</span>
+                <span>Kayıtlı Müşterilerim</span>
+                {dueReminderCount > 0 && (
+                  <span
+                    title={`${dueReminderCount} müşterinin geri arama zamanı geldi`}
+                    className="inline-flex items-center gap-1 bg-amber-500 text-slate-950 text-xs px-2 py-0.5 rounded-full font-black animate-pulse"
+                  >
+                    <Bell size={11} />
+                    {dueReminderCount}
+                  </span>
+                )}
                 {savedLeadCount > 0 && (
                   <span className="bg-emerald-950 text-emerald-300 text-xs px-2 py-0.5 rounded-full font-bold border border-emerald-500/40">
                     {savedLeadCount}
@@ -1265,6 +1280,7 @@ function App() {
             token={token}
             onLeadCountChange={setSavedLeadCount}
             onInspectMerchant={(merchant) => handleAudit(merchant)}
+            onRemindersUpdated={() => checkDueReminders(token)}
           />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -1277,19 +1293,6 @@ function App() {
                   Radar Kontrolü
                 </h2>
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowHistory(!showHistory)}
-                    title="Geçmiş Taramalar"
-                    className={`text-xs px-2 py-1 rounded-lg border transition-colors cursor-pointer flex items-center gap-1 ${
-                      showHistory
-                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                        : 'bg-slate-700 hover:bg-slate-600 border-slate-600 text-slate-200'
-                    }`}
-                  >
-                    <History size={13} />
-                    <span>Geçmiş</span>
-                  </button>
                   <button 
                     onClick={handleGetLocation} 
                     className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded-lg text-emerald-400 transition-colors cursor-pointer"
@@ -1299,42 +1302,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Geçmiş Taramalar Açılır Kutusu */}
-              {showHistory && (
-                <div className="mb-4 p-3 rounded-xl bg-slate-900 border border-slate-700 space-y-2 max-h-48 overflow-y-auto">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400 pb-1 border-b border-slate-800">
-                    <span>Son Taramalar ({scanHistory.length})</span>
-                  </div>
-                  {scanHistory.length === 0 ? (
-                    <p className="text-xs text-slate-500 text-center py-2">Henüz kayıtlı tarama geçmişi yok.</p>
-                  ) : (
-                    scanHistory.map(item => (
-                      <div
-                        key={item.id}
-                        onClick={() => handleApplyHistoryItem(item)}
-                        className="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 cursor-pointer text-xs transition-colors"
-                      >
-                        <div className="min-w-0">
-                          <p className="font-medium text-slate-200 truncate">
-                            {Number(item.search_lat).toFixed(3)}, {Number(item.search_lng).toFixed(3)} ({item.radius_meters}m)
-                          </p>
-                          <p className="text-[10px] text-emerald-400">
-                            {item.results_count} işletme • {item.category_filter || 'all'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteHistory(item.id, e)}
-                          className="p-1 text-slate-400 hover:text-rose-400 cursor-pointer shrink-0"
-                          title="Kaydı Sil"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
               
               <div className="space-y-4">
                 {/* Sektör Seçici */}

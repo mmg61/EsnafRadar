@@ -208,7 +208,7 @@ const MapRadar: React.FC<MapRadarProps> = ({ center, radius, merchants, isScanni
                   onClick={() => onAudit(m)}
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-1.5 px-3 rounded-lg text-xs transition-colors cursor-pointer shadow-md shadow-emerald-500/20"
                 >
-                  Derin Röntgen & Web Kazıyıcı 🩺
+                  İşletmeyi İncele ve Teklif Hazırla
                 </button>
               </div>
             </Popup>
