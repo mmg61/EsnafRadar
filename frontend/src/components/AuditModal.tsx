@@ -277,8 +277,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       );
       setPitchStatusMessage('PDF inceleme raporu bilgisayarınıza indirildi.');
       setTimeout(() => setPitchStatusMessage(null), 3500);
-    } catch (err: any) {
-      setPitchStatusMessage(err.message || 'PDF raporu indirilemedi.');
+    } catch (err: unknown) {
+      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'PDF raporu indirilemedi.');
     } finally {
       setIsExportingPdf(false);
     }
@@ -304,8 +304,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
         activeToken
       );
       setDemoSiteHtml(res.html_content || '');
-    } catch (err: any) {
-      setPitchStatusMessage(err.message || 'Örnek site taslağı oluşturulamadı.');
+    } catch (err: unknown) {
+      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'Örnek site taslağı oluşturulamadı.');
     } finally {
       setIsGeneratingDemoSite(false);
     }
@@ -351,8 +351,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           : 'Anahtar kaldırıldı; standart teklif oluşturucu aktif.'
       );
       setTimeout(() => setPitchStatusMessage(null), 4000);
-    } catch (err: any) {
-      setPitchStatusMessage(err.message || 'Anahtar kaydedilemedi.');
+    } catch (err: unknown) {
+      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'Anahtar kaydedilemedi.');
     } finally {
       setIsSavingApiKey(false);
     }
@@ -405,8 +405,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
       setPitchStatusMessage('Teklif metinleri seçtiğiniz ayarlara göre yenilendi.');
       setTimeout(() => setPitchStatusMessage(null), 4000);
-    } catch (err: any) {
-      setPitchStatusMessage(err.message || 'Teklif oluşturulurken bir hata oluştu.');
+    } catch (err: unknown) {
+      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'Teklif oluşturulurken bir hata oluştu.');
     } finally {
       setIsGeneratingPitch(false);
     }
@@ -456,11 +456,11 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-slate-800 w-full max-w-4xl rounded-2xl border border-slate-700 shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+      <div className="bg-[#E8DCC4] w-full max-w-4xl rounded-2xl border border-[#3F5E45] shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
         {/* Üst Başlık Çubuğu */}
-        <div className="bg-slate-900 px-6 py-5 border-b border-slate-700 flex flex-wrap justify-between items-center gap-4 shrink-0">
+        <div className="bg-[#FFF8E7] px-6 py-5 border-b border-[#3F5E45] flex flex-wrap justify-between items-center gap-4 shrink-0">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full bg-[#6F8F72] text-[#3F5E45] border border-[#3F5E45]">
               İşletme İnceleme Raporu
             </span>
             <h2 className="text-2xl font-bold text-white mt-2">
@@ -482,7 +482,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               onClick={handleDownloadPdf}
               disabled={isExportingPdf}
               title="İnceleme Raporunu PDF Olarak İndir"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6F8F72] hover:bg-[#6F8F72] text-[#3F5E45] border border-[#3F5E45] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
             >
               <FileDown size={16} />
               <span>{isExportingPdf ? 'PDF Hazırlanıyor...' : 'PDF Rapor İndir'}</span>
@@ -491,14 +491,14 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               <button
                 onClick={onReAudit}
                 title="İncelemeyi Yenile"
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 border border-slate-700 transition-colors cursor-pointer"
+                className="p-2.5 rounded-xl bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] hover:text-[#3F5E45] border border-[#3F5E45] transition-colors cursor-pointer"
               >
                 <RefreshCw size={17} />
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45]/80 hover:text-[#3F5E45] border border-[#3F5E45] transition-colors cursor-pointer"
             >
               <X size={19} />
             </button>
@@ -506,14 +506,14 @@ export const AuditModal: React.FC<AuditModalProps> = ({
         </div>
 
         {/* Göz Yormayan 2 Adımlı Sekme Çubuğu */}
-        <div className="bg-slate-900/70 px-6 py-3 border-b border-slate-700/80 flex items-center gap-3 shrink-0">
+        <div className="bg-[#FFF8E7] px-6 py-3 border-b border-[#3F5E45] flex items-center gap-3 shrink-0">
           <button
             type="button"
             onClick={() => setMainTab('overview')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               mainTab === 'overview'
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+                ? 'bg-[#6F8F72] text-white shadow-md shadow-none'
+                : 'bg-[#E8DCC4] text-[#3F5E45] hover:text-[#3F5E45] border border-[#3F5E45]'
             }`}
           >
             <FileText size={16} />
@@ -525,8 +525,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             onClick={() => setMainTab('proposal')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               mainTab === 'proposal'
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+                ? 'bg-[#6F8F72] text-white shadow-md shadow-none'
+                : 'bg-[#E8DCC4] text-[#3F5E45] hover:text-[#3F5E45] border border-[#3F5E45]'
             }`}
           >
             <Wand2 size={16} />
@@ -538,8 +538,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             onClick={handleOpenDemoSite}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               mainTab === 'demo_site'
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+                ? 'bg-[#6F8F72] text-white shadow-md shadow-none'
+                : 'bg-[#E8DCC4] text-[#3F5E45] hover:text-[#3F5E45] border border-[#3F5E45]'
             }`}
           >
             <LayoutTemplate size={16} />
@@ -550,7 +550,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
         {/* Kaydırılabilir Ana İçerik */}
         <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1">
           {pitchStatusMessage && (
-            <div className="px-4 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm flex items-center gap-2">
+            <div className="px-4 py-3 rounded-xl bg-[#6F8F72] border border-[#3F5E45] text-[#3F5E45] text-sm flex items-center gap-2">
               <CheckCircle2 size={16} className="shrink-0" />
               <span>{pitchStatusMessage}</span>
             </div>
@@ -560,15 +560,15 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             <div className="space-y-6">
               {/* Bölüm 1: Puan ve Genel Değerlendirme (Ferah Kart) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-slate-900 p-6 rounded-2xl border border-slate-700 flex flex-col items-center justify-center text-center">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <div className="bg-[#FFF8E7] p-6 rounded-2xl border border-[#3F5E45] flex flex-col items-center justify-center text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#3F5E45]/80">
                     İhtiyaç ve Fırsat Puanı
                   </p>
-                  <p className="text-5xl font-black text-emerald-400 my-3">
+                  <p className="text-5xl font-black text-[#3F5E45] my-3">
                     {auditResult.score}
-                    <span className="text-xl text-slate-500 font-semibold">/100</span>
+                    <span className="text-xl text-[#3F5E45]0 font-semibold">/100</span>
                   </p>
-                  <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                  <span className="text-xs px-3 py-1 rounded-full bg-[#6F8F72] text-[#3F5E45] border border-[#3F5E45]">
                     {auditResult.score >= 80
                       ? 'Çok Yüksek Satış Fırsatı'
                       : auditResult.score >= 55
@@ -594,25 +594,25 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   )}
                 </div>
 
-                <div className="md:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-700 flex flex-col justify-between space-y-4">
+                <div className="md:col-span-2 bg-[#FFF8E7] p-6 rounded-2xl border border-[#3F5E45] flex flex-col justify-between space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-emerald-400 mb-2">
+                    <h3 className="text-sm font-bold text-[#3F5E45] mb-2">
                       Genel Değerlendirme
                     </h3>
-                    <p className="text-slate-200 text-sm leading-relaxed">
+                    <p className="text-[#3F5E45] text-sm leading-relaxed">
                       {auditResult.ai_summary}
                     </p>
                   </div>
 
                   <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-[#3F5E45]/80 mb-2.5">
                       Yapılabilecek İyileştirmeler
                     </h4>
                     <div className="flex flex-wrap gap-2">
                       {(auditResult.opportunities || []).map((opp: string, i: number) => (
                         <span
                           key={i}
-                          className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 rounded-xl text-xs font-medium"
+                          className="bg-[#6F8F72] text-[#3F5E45] border border-[#3F5E45] px-3.5 py-1.5 rounded-xl text-xs font-medium"
                         >
                           + {opp}
                         </span>
@@ -623,28 +623,28 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               </div>
 
               {/* Bölüm 2: Bulunan İletişim ve Sosyal Medya Bilgileri (Tekilleştirilmiş & Ferah) */}
-              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-700 space-y-4">
+              <div className="bg-[#FFF8E7] p-6 rounded-2xl border border-[#3F5E45] space-y-4">
                 <h3 className="text-sm font-bold text-white">
                   Bulunan İletişim ve Sosyal Medya Bilgileri
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Telefon Numaraları */}
-                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
-                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-2">
-                      <Phone size={14} className="text-emerald-400" />
+                  <div className="bg-[#FFF8E7] p-4 rounded-xl border border-[#3F5E45] space-y-3">
+                    <p className="text-xs font-semibold text-[#3F5E45]/80 flex items-center gap-2">
+                      <Phone size={14} className="text-[#3F5E45]" />
                       <span>Telefon ({allPhones.length})</span>
                     </p>
                     {allPhones.length === 0 ? (
-                      <p className="text-sm text-slate-500">Telefon numarası bulunamadı.</p>
+                      <p className="text-sm text-[#3F5E45]0">Telefon numarası bulunamadı.</p>
                     ) : (
                       <div className="space-y-2">
                         {allPhones.map((ph, i) => (
                           <div
                             key={`ph-${i}`}
-                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-sm"
+                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#E8DCC4] border border-[#3F5E45] text-sm"
                           >
-                            <a href={`tel:${ph}`} className="text-white hover:text-emerald-400 font-medium truncate">
+                            <a href={`tel:${ph}`} className="text-white hover:text-[#3F5E45] font-medium truncate">
                               {ph}
                             </a>
                             <div className="flex items-center gap-1.5 shrink-0">
@@ -652,7 +652,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                                 href={`https://wa.me/${formatWhatsAppNumber(ph)}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="px-2 py-1 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 text-xs font-semibold"
+                                className="px-2 py-1 rounded bg-[#6F8F72] text-[#3F5E45] hover:bg-[#6F8F72] text-xs font-semibold"
                               >
                                 WhatsApp
                               </a>
@@ -660,9 +660,9 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                                 type="button"
                                 onClick={() => handleCopyValue(ph)}
                                 title="Numarayı Kopyala"
-                                className="p-1 text-slate-400 hover:text-white cursor-pointer"
+                                className="p-1 text-[#3F5E45]/80 hover:text-[#3F5E45] cursor-pointer"
                               >
-                                {copiedItem === ph ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                                {copiedItem === ph ? <Check size={14} className="text-[#3F5E45]" /> : <Copy size={14} />}
                               </button>
                             </div>
                           </div>
@@ -672,19 +672,19 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   </div>
 
                   {/* E-posta Adresleri */}
-                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
-                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                  <div className="bg-[#FFF8E7] p-4 rounded-xl border border-[#3F5E45] space-y-3">
+                    <p className="text-xs font-semibold text-[#3F5E45]/80 flex items-center gap-2">
                       <Mail size={14} className="text-blue-400" />
                       <span>E-posta ({allEmails.length})</span>
                     </p>
                     {allEmails.length === 0 ? (
-                      <p className="text-sm text-slate-500">E-posta adresi bulunamadı.</p>
+                      <p className="text-sm text-[#3F5E45]0">E-posta adresi bulunamadı.</p>
                     ) : (
                       <div className="space-y-2">
                         {allEmails.map((em, i) => (
                           <div
                             key={`em-${i}`}
-                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-sm"
+                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#E8DCC4] border border-[#3F5E45] text-sm"
                           >
                             <a
                               href={`mailto:${em}`}
@@ -697,9 +697,9 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                               type="button"
                               onClick={() => handleCopyValue(em)}
                               title="E-postayı Kopyala"
-                              className="p-1 text-slate-400 hover:text-white cursor-pointer shrink-0"
+                              className="p-1 text-[#3F5E45]/80 hover:text-[#3F5E45] cursor-pointer shrink-0"
                             >
-                              {copiedItem === em ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                              {copiedItem === em ? <Check size={14} className="text-[#3F5E45]" /> : <Copy size={14} />}
                             </button>
                           </div>
                         ))}
@@ -708,13 +708,13 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   </div>
 
                   {/* Sosyal Medya Hesapları */}
-                  <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
-                    <p className="text-xs font-semibold text-slate-400 flex items-center gap-2">
+                  <div className="bg-[#FFF8E7] p-4 rounded-xl border border-[#3F5E45] space-y-3">
+                    <p className="text-xs font-semibold text-[#3F5E45]/80 flex items-center gap-2">
                       <Globe size={14} className="text-purple-400" />
                       <span>Sosyal Medya ({Object.keys(socialLinks).length})</span>
                     </p>
                     {Object.keys(socialLinks).length === 0 ? (
-                      <p className="text-sm text-slate-500">Sosyal medya hesabı bulunamadı.</p>
+                      <p className="text-sm text-[#3F5E45]0">Sosyal medya hesabı bulunamadı.</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {Object.entries(socialLinks).map(([platform, link]) => (
@@ -723,7 +723,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                             href={link}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm text-blue-400 hover:underline capitalize"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#E8DCC4] hover:bg-[#B7C9A8] border border-[#3F5E45] text-sm text-blue-400 hover:underline capitalize"
                           >
                             <ExternalLink size={13} />
                             <span>{platform}</span>
@@ -736,14 +736,14 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               </div>
 
               {/* Bölüm 3: Web Sitesi Durum Kontrolü (Ferah Satırlar) */}
-              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-700 space-y-4">
+              <div className="bg-[#FFF8E7] p-6 rounded-2xl border border-[#3F5E45] space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-white">
                     Web Sitesi Durum Kontrolü
                   </h3>
                   {auditResult.cms_platform && (
-                    <span className="text-xs text-slate-400">
-                      Altyapı: <strong className="text-emerald-400">{auditResult.cms_platform}</strong>
+                    <span className="text-xs text-[#3F5E45]/80">
+                      Altyapı: <strong className="text-[#3F5E45]">{auditResult.cms_platform}</strong>
                     </span>
                   )}
                 </div>
@@ -754,11 +754,11 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       key={idx}
                       className={`px-4 py-3 rounded-xl border text-sm flex items-center justify-between ${
                         item.ok
-                          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
+                          ? 'bg-[#6F8F72] border-[#3F5E45] text-[#3F5E45]'
                           : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
                       }`}
                     >
-                      <span className="font-medium text-slate-100">{item.label}</span>
+                      <span className="font-medium text-[#3F5E45]">{item.label}</span>
                       <span className="inline-flex items-center gap-1.5 font-semibold text-xs">
                         {item.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
                         {item.ok ? item.okText : item.failText}
@@ -769,19 +769,19 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               </div>
 
               {/* Teklif Sekmesine Geçiş Çağrısı */}
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+              <div className="bg-[#6F8F72] border border-[#3F5E45] rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h4 className="text-sm font-bold text-white">
                     Bu İşletmeye Gönderilecek Teklif Mesajınız Hazır
                   </h4>
-                  <p className="text-xs text-slate-300 mt-0.5">
+                  <p className="text-xs text-[#3F5E45] mt-0.5">
                     WhatsApp, E-posta, Instagram veya Telefon görüşmesi için hazırlanan teklif metnini inceleyip hemen gönderebilirsiniz.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setMainTab('proposal')}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-emerald-500/20"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#6F8F72] hover:bg-[#6F8F72] text-white text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-none"
                 >
                   <span>Teklif Mesajını Aç</span>
                   <ArrowRight size={16} />
@@ -790,13 +790,13 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             </div>
           ) : mainTab === 'proposal' ? (
             /* SEKME 2: HAZIR TEKLİF MESAJI OLUŞTURUCU (Ferah Görünüm) */
-            <div className="bg-slate-900 rounded-2xl border border-slate-700 overflow-hidden">
-              <div className="px-6 py-4 bg-slate-950/60 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="bg-[#FFF8E7] rounded-2xl border border-[#3F5E45] overflow-hidden">
+              <div className="px-6 py-4 bg-[#FFF8E7] border-b border-[#3F5E45] flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-base font-bold text-white">
                     Hazır Teklif Mesajı Oluşturucu
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#3F5E45]/80 mt-0.5">
                     Konuşma dilini ve önermek istediğiniz hizmeti seçerek mesajı istediğiniz gibi yenileyebilirsiniz.
                   </p>
                 </div>
@@ -807,8 +807,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     onClick={() => setShowAdvancedParams(!showAdvancedParams)}
                     className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
                       showAdvancedParams
-                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                        ? 'bg-[#6F8F72] border-[#3F5E45] text-[#3F5E45]'
+                        : 'bg-[#E8DCC4] hover:bg-[#B7C9A8] border-[#3F5E45] text-[#3F5E45]'
                     }`}
                   >
                     <SlidersHorizontal size={14} />
@@ -817,9 +817,9 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowApiKeyModal(!showApiKeyModal)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 border border-slate-700 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#E8DCC4] hover:bg-[#B7C9A8] text-xs font-medium text-[#3F5E45] border border-[#3F5E45] transition-colors cursor-pointer"
                   >
-                    <KeyRound size={14} className="text-emerald-400" />
+                    <KeyRound size={14} className="text-[#3F5E45]" />
                     <span>{aiStatus.configured ? 'Gemini Ayarlı' : 'Gemini Anahtarı'}</span>
                   </button>
                 </div>
@@ -828,13 +828,13 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               {showApiKeyModal && (
                 <form
                   onSubmit={handleSaveApiKey}
-                  className="p-5 bg-slate-950/90 border-b border-slate-800 space-y-3 text-xs"
+                  className="p-5 bg-[#FFF8E7] border-b border-[#3F5E45] space-y-3 text-xs"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-emerald-400">
+                    <span className="font-semibold text-[#3F5E45]">
                       Google Gemini Anahtarı (İsteğe Bağlı)
                     </span>
-                    <span className="text-slate-400">
+                    <span className="text-[#3F5E45]/80">
                       Anahtar girmezseniz sistem kendi akıllı şablonlarıyla teklif üretmeye devam eder
                     </span>
                   </div>
@@ -844,12 +844,12 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       value={apiKeyInput}
                       onChange={e => setApiKeyInput(e.target.value)}
                       placeholder="Google Gemini anahtarınızı buraya yapıştırın (AIzaSy...)"
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      className="flex-1 bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#3F5E45]"
                     />
                     <button
                       type="submit"
                       disabled={isSavingApiKey}
-                      className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold cursor-pointer disabled:opacity-50"
+                      className="px-5 py-2.5 rounded-xl bg-[#6F8F72] hover:bg-[#6F8F72] text-white font-semibold cursor-pointer disabled:opacity-50"
                     >
                       {isSavingApiKey ? 'Kaydediliyor...' : 'Kaydet'}
                     </button>
@@ -858,16 +858,16 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               )}
 
               {/* Ayar Seçicileri */}
-              <div className="p-6 bg-slate-950/30 border-b border-slate-800 space-y-4">
+              <div className="p-6 bg-[#FFF8E7] border-b border-[#3F5E45] space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   <div className="md:col-span-4">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
                       Konuşma Dili
                     </label>
                     <select
                       value={tone}
                       onChange={e => setTone(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                      className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#3F5E45] cursor-pointer"
                     >
                       <option value="kurumsal">Kurumsal ve Saygılı</option>
                       <option value="samimi">Samimi ve Esnaf Dostu</option>
@@ -877,13 +877,13 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   </div>
 
                   <div className="md:col-span-5">
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
                       Önerilecek Hizmet
                     </label>
                     <select
                       value={focusService}
                       onChange={e => setFocusService(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                      className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#3F5E45] cursor-pointer"
                     >
                       <option value="auto">Otomatik (Eksiklere Göre En Uygunu)</option>
                       <option value="web_tasarim">Telefon Uyumlu Yeni Web Sitesi</option>
@@ -898,7 +898,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       type="button"
                       onClick={handleGenerateAiPitch}
                       disabled={isGeneratingPitch}
-                      className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-md shadow-emerald-500/20"
+                      className="w-full flex items-center justify-center gap-2 bg-[#6F8F72] hover:bg-[#6F8F72] text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-md shadow-none"
                     >
                       <Sparkles size={16} className={isGeneratingPitch ? 'animate-spin' : ''} />
                       <span>{isGeneratingPitch ? 'Hazırlanıyor...' : 'Teklifi Yenile'}</span>
@@ -907,56 +907,56 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                 </div>
 
                 {showAdvancedParams && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-800/80">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[#3F5E45]">
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Adınız Soyadınız</label>
+                      <label className="block text-xs text-[#3F5E45]/80 mb-1">Adınız Soyadınız</label>
                       <input
                         type="text"
                         value={senderName}
                         onChange={e => setSenderName(e.target.value)}
                         placeholder="Örn: Ahmet Yılmaz"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#3F5E45]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Firma / Ekip Adınız</label>
+                      <label className="block text-xs text-[#3F5E45]/80 mb-1">Firma / Ekip Adınız</label>
                       <input
                         type="text"
                         value={agencyName}
                         onChange={e => setAgencyName(e.target.value)}
                         placeholder="Örn: Nova Web Tasarım"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#3F5E45]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Özel İndirim veya Hediye Notu</label>
+                      <label className="block text-xs text-[#3F5E45]/80 mb-1">Özel İndirim veya Hediye Notu</label>
                       <input
                         type="text"
                         value={specialOffer}
                         onChange={e => setSpecialOffer(e.target.value)}
                         placeholder="Örn: Bu haftaya özel Google Harita kaydı ücretsiz"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#3F5E45]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-slate-400 mb-1">Eklemek İstediğiniz Özel Not</label>
+                      <label className="block text-xs text-[#3F5E45]/80 mb-1">Eklemek İstediğiniz Özel Not</label>
                       <input
                         type="text"
                         value={customInstruction}
                         onChange={e => setCustomInstruction(e.target.value)}
                         placeholder="Örn: Paket servis siparişlerine vurgu yap"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-[#3F5E45]"
                       />
                     </div>
                   </div>
                 )}
 
                 {recommendedPackage && (
-                  <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-slate-400">
+                  <div className="bg-[#FFF8E7] p-4 rounded-xl border border-[#3F5E45] flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-[#3F5E45]/80">
                       Önerilen Çözüm Paketi:
                     </span>
-                    <span className="text-sm font-bold text-emerald-400">
+                    <span className="text-sm font-bold text-[#3F5E45]">
                       {recommendedPackage}
                     </span>
                   </div>
@@ -964,15 +964,15 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               </div>
 
               {/* 4 Kanal Seçici */}
-              <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-3.5 bg-slate-950/60 border-b border-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-3.5 bg-[#FFF8E7] border-b border-[#3F5E45]">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setPitchTab('whatsapp')}
                     className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'whatsapp'
-                        ? 'bg-emerald-500 text-white'
-                        : 'text-slate-300 hover:text-white bg-slate-800'
+                        ? 'bg-[#6F8F72] text-white'
+                        : 'text-[#3F5E45] hover:text-[#3F5E45] bg-[#E8DCC4]'
                     }`}
                   >
                     <MessageSquare size={14} />
@@ -983,8 +983,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     onClick={() => setPitchTab('email')}
                     className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'email'
-                        ? 'bg-emerald-500 text-white'
-                        : 'text-slate-300 hover:text-white bg-slate-800'
+                        ? 'bg-[#6F8F72] text-white'
+                        : 'text-[#3F5E45] hover:text-[#3F5E45] bg-[#E8DCC4]'
                     }`}
                   >
                     <Mail size={14} />
@@ -995,8 +995,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     onClick={() => setPitchTab('instagram')}
                     className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'instagram'
-                        ? 'bg-emerald-500 text-white'
-                        : 'text-slate-300 hover:text-white bg-slate-800'
+                        ? 'bg-[#6F8F72] text-white'
+                        : 'text-[#3F5E45] hover:text-[#3F5E45] bg-[#E8DCC4]'
                     }`}
                   >
                     <Send size={14} />
@@ -1007,8 +1007,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     onClick={() => setPitchTab('cold_call')}
                     className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'cold_call'
-                        ? 'bg-emerald-500 text-white'
-                        : 'text-slate-300 hover:text-white bg-slate-800'
+                        ? 'bg-[#6F8F72] text-white'
+                        : 'text-[#3F5E45] hover:text-[#3F5E45] bg-[#E8DCC4]'
                     }`}
                   >
                     <PhoneCall size={14} />
@@ -1019,7 +1019,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyPitch}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-emerald-400 border border-slate-700 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#E8DCC4] hover:bg-[#B7C9A8] text-xs font-semibold text-[#3F5E45] border border-[#3F5E45] transition-colors cursor-pointer"
                 >
                   {copied ? <Check size={14} /> : <Copy size={14} />}
                   <span>{copied ? 'Kopyalandı' : 'Yazıyı Kopyala'}</span>
@@ -1030,20 +1030,20 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               <div className="p-6 space-y-4">
                 {pitchTab === 'email' && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                    <label className="block text-xs font-semibold text-[#3F5E45]/80 mb-1.5">
                       E-posta Konusu
                     </label>
                     <input
                       type="text"
                       value={emailSubject}
                       onChange={e => setEmailSubject(e.target.value)}
-                      className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500"
+                      className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#3F5E45]"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#3F5E45]/80 mb-1.5">
                     {pitchTab === 'whatsapp'
                       ? 'WhatsApp Mesajı (Göndermeden önce üzerinde değişiklik yapabilirsiniz)'
                       : pitchTab === 'email'
@@ -1056,7 +1056,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     rows={pitchTab === 'email' || pitchTab === 'cold_call' ? 9 : 6}
                     value={getActivePitchText()}
                     onChange={e => setActivePitchText(e.target.value)}
-                    className="w-full text-sm text-slate-100 font-sans leading-relaxed bg-slate-950/70 p-4 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500 resize-y"
+                    className="w-full text-sm text-[#3F5E45] font-sans leading-relaxed bg-[#FFF8E7] p-4 rounded-xl border border-[#3F5E45] focus:outline-none focus:border-[#3F5E45] resize-y"
                   />
                 </div>
 
@@ -1066,7 +1066,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       href={waUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6F8F72] hover:bg-[#6F8F72] text-white text-sm font-semibold transition-colors"
                     >
                       <MessageSquare size={16} />
                       <span>WhatsApp ile Gönder ({effectivePhone})</span>
@@ -1095,9 +1095,9 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   {effectivePhone && (
                     <a
                       href={`tel:${effectivePhone}`}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-sm font-semibold transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-sm font-semibold transition-colors"
                     >
-                      <PhoneCall size={16} className="text-emerald-400" />
+                      <PhoneCall size={16} className="text-[#3F5E45]" />
                       <span>Telefonla Ara ({effectivePhone})</span>
                     </a>
                   )}
@@ -1107,25 +1107,25 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           ) : (
             /* SEKME 3: CANLI ÖRNEK SİTE ÖNİZLEMESİ */
             <div className="space-y-4">
-              <div className="bg-slate-900 p-4 rounded-2xl border border-slate-700 flex flex-wrap items-center justify-between gap-3">
+              <div className="bg-[#FFF8E7] p-4 rounded-2xl border border-[#3F5E45] flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-white">
                     {auditResult.merchantName} — Örnek Web Sitesi Taslağı
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-[#3F5E45]/80 mt-0.5">
                     İşletmenin adı, sektörü, telefonu, adresi ve çalışma saatleri kullanılarak otomatik oluşturuldu.
                   </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                  <div className="inline-flex bg-[#E8DCC4] p-1 rounded-xl border border-[#3F5E45]">
                     <button
                       type="button"
                       onClick={() => setDemoPreviewDevice('desktop')}
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                         demoPreviewDevice === 'desktop'
-                          ? 'bg-emerald-500 text-white'
-                          : 'text-slate-400 hover:text-white'
+                          ? 'bg-[#6F8F72] text-white'
+                          : 'text-[#3F5E45]/80 hover:text-[#3F5E45]'
                       }`}
                     >
                       <Monitor size={14} />
@@ -1136,8 +1136,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       onClick={() => setDemoPreviewDevice('mobile')}
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                         demoPreviewDevice === 'mobile'
-                          ? 'bg-emerald-500 text-white'
-                          : 'text-slate-400 hover:text-white'
+                          ? 'bg-[#6F8F72] text-white'
+                          : 'text-[#3F5E45]/80 hover:text-[#3F5E45]'
                       }`}
                     >
                       <Smartphone size={14} />
@@ -1149,7 +1149,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     type="button"
                     onClick={handleOpenDemoInNewTab}
                     disabled={!demoSiteHtml}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-semibold cursor-pointer disabled:opacity-50"
                   >
                     <ExternalLink size={14} />
                     <span>Yeni Sekmede Tam Ekran Aç</span>
@@ -1159,7 +1159,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     type="button"
                     onClick={handleDownloadDemoHtml}
                     disabled={!demoSiteHtml}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#6F8F72] hover:bg-[#6F8F72] text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
                   >
                     <FileDown size={14} />
                     <span>Taslak Siteyi İndir (.html)</span>
@@ -1168,15 +1168,15 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               </div>
 
               {isGeneratingDemoSite ? (
-                <div className="bg-slate-900 border border-slate-700 rounded-2xl p-16 text-center text-slate-300 animate-pulse">
+                <div className="bg-[#FFF8E7] border border-[#3F5E45] rounded-2xl p-16 text-center text-[#3F5E45] animate-pulse">
                   İşletmeye özel örnek web sitesi hazırlanıyor...
                 </div>
               ) : demoSiteHtml ? (
-                <div className="bg-slate-950 border border-slate-700 rounded-2xl p-4 flex justify-center overflow-hidden">
+                <div className="bg-[#FFF8E7] border border-[#3F5E45] rounded-2xl p-4 flex justify-center overflow-hidden">
                   <iframe
                     title={`${auditResult.merchantName} Örnek Web Sitesi`}
                     srcDoc={demoSiteHtml}
-                    className={`bg-white rounded-xl border border-slate-700 shadow-2xl transition-all duration-200 ${
+                    className={`bg-white rounded-xl border border-[#3F5E45] shadow-2xl transition-all duration-200 ${
                       demoPreviewDevice === 'mobile'
                         ? 'w-[390px] h-[640px]'
                         : 'w-full h-[560px]'
@@ -1184,7 +1184,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   />
                 </div>
               ) : (
-                <div className="bg-slate-900 border border-slate-700 rounded-2xl p-12 text-center text-slate-400 text-sm">
+                <div className="bg-[#FFF8E7] border border-[#3F5E45] rounded-2xl p-12 text-center text-[#3F5E45]/80 text-sm">
                   Örnek site önizlemesi yüklenemedi.
                 </div>
               )}
@@ -1193,10 +1193,10 @@ export const AuditModal: React.FC<AuditModalProps> = ({
         </div>
 
         {/* Alt Aksiyon Çubuğu */}
-        <div className="px-6 py-4 border-t border-slate-700 bg-slate-900 flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="px-6 py-4 border-t border-[#3F5E45] bg-[#FFF8E7] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <button
             onClick={onClose}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
+            className="bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
           >
             Kapat
           </button>
@@ -1213,7 +1213,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             <button
               onClick={handleDownloadPdf}
               disabled={isExportingPdf}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/40 text-sm font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2.5 rounded-xl bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-sm font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <FileDown size={16} />
               <span>{isExportingPdf ? 'PDF İndiriliyor...' : 'PDF Rapor İndir'}</span>
@@ -1223,8 +1223,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               disabled={isSavingLead || saveLeadSuccess}
               className={`px-5 py-2.5 rounded-xl transition-colors text-sm font-semibold flex items-center gap-2 cursor-pointer ${
                 saveLeadSuccess
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 shadow-lg shadow-emerald-500/20'
+                  ? 'bg-[#6F8F72] text-white'
+                  : 'bg-[#6F8F72] hover:bg-[#6F8F72] text-white disabled:opacity-50 shadow-lg shadow-none'
               }`}
             >
               <BookmarkPlus size={17} />

@@ -1,13 +1,11 @@
 import os
 import json
 from typing import List, Optional, Dict, Any
-from dotenv import load_dotenv, set_key
+from dotenv import load_dotenv
 from google import genai
 from pydantic import BaseModel
 
 load_dotenv()
-
-ENV_FILE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 
 
 class GeminiPitchOutput(BaseModel):
@@ -21,15 +19,17 @@ class GeminiPitchOutput(BaseModel):
     cold_call_script: str
 
 
-def get_gemini_api_key(override_key: Optional[str] = None) -> Optional[str]:
+def get_gemini_api_key(user_key: Optional[str] = None, override_key: Optional[str] = None) -> Optional[str]:
     if override_key and override_key.strip():
         return override_key.strip()
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
-    return key if key else None
+    if user_key and user_key.strip():
+        return user_key.strip()
+    env_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    return env_key if env_key else None
 
 
-def get_gemini_status() -> Dict[str, Any]:
-    key = get_gemini_api_key()
+def get_gemini_status(user_key: Optional[str] = None) -> Dict[str, Any]:
+    key = get_gemini_api_key(user_key=user_key)
     masked = None
     if key and len(key) > 8:
         masked = f"{key[:6]}...{key[-4:]}"
@@ -40,20 +40,6 @@ def get_gemini_status() -> Dict[str, Any]:
         "masked_key": masked,
         "model": "gemini-2.5-flash"
     }
-
-
-def save_gemini_api_key(api_key: str) -> Dict[str, Any]:
-    clean_key = (api_key or "").strip()
-    os.environ["GEMINI_API_KEY"] = clean_key
-    try:
-        if not os.path.exists(ENV_FILE_PATH):
-            with open(ENV_FILE_PATH, "w", encoding="utf-8") as f:
-                f.write(f"GEMINI_API_KEY={clean_key}\n")
-        else:
-            set_key(ENV_FILE_PATH, "GEMINI_API_KEY", clean_key)
-    except Exception:
-        pass
-    return get_gemini_status()
 
 
 def _extract_pain_points_from_audit(name: str, category: Optional[str], audit: Dict[str, Any]) -> List[str]:
@@ -260,6 +246,7 @@ async def generate_personalized_pitch(
     custom_instruction: Optional[str] = None,
     audit_context: Optional[Dict[str, Any]] = None,
     gemini_api_key: Optional[str] = None,
+    user_gemini_key: Optional[str] = None,
 ) -> Dict[str, Any]:
     audit = audit_context or {}
 
@@ -275,7 +262,7 @@ async def generate_personalized_pitch(
         audit=audit,
     )
 
-    active_api_key = get_gemini_api_key(gemini_api_key)
+    active_api_key = get_gemini_api_key(user_key=user_gemini_key, override_key=gemini_api_key)
     if not active_api_key:
         return fallback_result
 

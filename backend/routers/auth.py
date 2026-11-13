@@ -1,6 +1,6 @@
 import os
 import re
-import random
+import secrets
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -15,7 +15,9 @@ import models, schemas, database, auth
 
 router = APIRouter()
 
-CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY", "1x0000000000000000000000000000000AA")
+CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY", "").strip()
+ALLOW_DEV_TURNSTILE = os.getenv("ALLOW_DEV_TURNSTILE", "true").strip().lower() in ("1", "true", "yes")
+
 
 def validate_password_strength(password: str) -> tuple[bool, str]:
     if len(password) < 8:
@@ -28,13 +30,33 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
         return False, "Şifre en az bir rakam içermelidir."
     return True, ""
 
-TEST_TURNSTILE_SECRET = "1x0000000000000000000000000000000AA"
-_ip_register_history = defaultdict(list)
+
+def _check_rate_limit(db: Session, bucket: str, identifier: str, window_seconds: int, max_requests: int) -> bool:
+    """Veritabanı destekli kalıcı istek sınırlama (Rate Limit) kontrolü."""
+    cutoff = datetime.utcnow() - timedelta(seconds=window_seconds)
+    db.query(models.RateLimitLog).filter(
+        models.RateLimitLog.bucket == bucket,
+        models.RateLimitLog.created_at < cutoff
+    ).delete(synchronize_session=False)
+    count = db.query(models.RateLimitLog).filter(
+        models.RateLimitLog.bucket == bucket,
+        models.RateLimitLog.identifier == identifier,
+        models.RateLimitLog.created_at >= cutoff
+    ).count()
+    return count < max_requests
+
+
+def _record_rate_limit_hit(db: Session, bucket: str, identifier: str) -> None:
+    db.add(models.RateLimitLog(bucket=bucket, identifier=identifier, created_at=datetime.utcnow()))
+    db.commit()
+
 
 async def verify_turnstile(token: str | None) -> bool:
+    # Gerçek bir Turnstile gizli anahtarı tanımlanmamışsa ve yerel geliştirme izni açıksa geçer
+    if not CLOUDFLARE_TURNSTILE_SECRET_KEY:
+        return ALLOW_DEV_TURNSTILE
     if not token:
-        # Canlı ortam anahtarı tanımlıysa boş token kabul edilmez
-        return CLOUDFLARE_TURNSTILE_SECRET_KEY == TEST_TURNSTILE_SECRET
+        return False
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             res = await client.post(
@@ -45,18 +67,17 @@ async def verify_turnstile(token: str | None) -> bool:
                 }
             )
             result = res.json()
-            return result.get("success", False)
+            return bool(result.get("success", False))
     except Exception:
-        return CLOUDFLARE_TURNSTILE_SECRET_KEY == TEST_TURNSTILE_SECRET
+        return False
+
 
 @router.post("/register", response_model=schemas.UserResponse)
 async def register_user(user: schemas.UserCreate, request: Request, db: Session = Depends(database.get_db)):
-    now = datetime.utcnow()
     client_ip = request.client.host if request.client else "unknown"
 
     # 0. IP bazlı kayıt spam koruması (Son 10 dakikada en fazla 10 kayıt)
-    _ip_register_history[client_ip] = [t for t in _ip_register_history[client_ip] if (now - t).total_seconds() < 600]
-    if len(_ip_register_history[client_ip]) >= 10:
+    if not _check_rate_limit(db, "register_ip", client_ip, window_seconds=600, max_requests=10):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Çok fazla kayıt denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyiniz."
@@ -83,7 +104,7 @@ async def register_user(user: schemas.UserCreate, request: Request, db: Session 
     db_user = db.query(models.User).filter(models.User.email == email_clean).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Bu e-posta adresi zaten kayıtlı.")
-    
+
     hashed_password = auth.get_password_hash(user.password)
     full_name = f"{first_name_clean} {last_name_clean}".strip()
     new_user = models.User(
@@ -98,9 +119,8 @@ async def register_user(user: schemas.UserCreate, request: Request, db: Session 
     db.commit()
     db.refresh(new_user)
 
-    _ip_register_history[client_ip].append(now)
+    _record_rate_limit_hit(db, "register_ip", client_ip)
 
-    # Kayıt sonrası doğrudan JWT erişim token'ı üret (çift Turnstile tüketimini önler)
     access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = auth.create_access_token(
         data={"sub": new_user.email}, expires_delta=access_token_expires
@@ -117,9 +137,9 @@ async def register_user(user: schemas.UserCreate, request: Request, db: Session 
         "token_type": "bearer"
     }
 
+
 @router.post("/login", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
-    # 0. Turnstile doğrulaması
     is_turnstile_valid = await verify_turnstile(form_data.client_secret)
     if not is_turnstile_valid:
         raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
@@ -128,7 +148,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     user = db.query(models.User).filter(models.User.email == email_clean).first()
     now = datetime.utcnow()
 
-    # 1. Check if user is locked
     if user and user.locked_until and user.locked_until > now:
         remaining_seconds = int((user.locked_until - now).total_seconds())
         remaining_minutes = max(1, (remaining_seconds + 59) // 60)
@@ -137,7 +156,6 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail=f"Hesabınız kilitlendi. Lütfen {remaining_minutes} dakika sonra tekrar deneyin."
         )
 
-    # 2. Check password
     if not user or not auth.verify_password(form_data.password, user.hashed_password):
         if user:
             user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
@@ -160,8 +178,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail=detail_msg,
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    # 3. Successful login -> reset failed attempts and unlock
+
     if user.failed_login_attempts or user.locked_until:
         user.failed_login_attempts = 0
         user.locked_until = None
@@ -173,13 +190,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 @router.get("/me", response_model=schemas.UserProfileResponse)
 def read_users_me(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     saved_count = db.query(models.SavedLead).filter(models.SavedLead.user_id == current_user.id).count()
-    scans_count = 0
     return {
         "id": current_user.id,
         "email": current_user.email,
@@ -188,8 +205,8 @@ def read_users_me(
         "full_name": current_user.full_name or f"{current_user.first_name or ''} {current_user.last_name or ''}".strip(),
         "created_at": current_user.created_at,
         "saved_leads_count": saved_count,
-        "scans_count": scans_count,
     }
+
 
 @router.put("/me", response_model=schemas.UserProfileResponse)
 def update_user_profile(
@@ -201,26 +218,25 @@ def update_user_profile(
         current_user.first_name = user_update.first_name.strip()
     if user_update.last_name is not None:
         current_user.last_name = user_update.last_name.strip()
-    
+
     current_user.full_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
-    
+
     if user_update.new_password:
         if not user_update.current_password:
             raise HTTPException(status_code=400, detail="Mevcut şifrenizi girmelisiniz.")
         if not auth.verify_password(user_update.current_password, current_user.hashed_password):
             raise HTTPException(status_code=400, detail="Mevcut şifreniz hatalı.")
-        
+
         is_strong, err_msg = validate_password_strength(user_update.new_password)
         if not is_strong:
             raise HTTPException(status_code=400, detail=err_msg)
-        
+
         current_user.hashed_password = auth.get_password_hash(user_update.new_password)
-        
+
     db.commit()
     db.refresh(current_user)
 
     saved_count = db.query(models.SavedLead).filter(models.SavedLead.user_id == current_user.id).count()
-    scans_count = 0
     return {
         "id": current_user.id,
         "email": current_user.email,
@@ -229,8 +245,8 @@ def update_user_profile(
         "full_name": current_user.full_name,
         "created_at": current_user.created_at,
         "saved_leads_count": saved_count,
-        "scans_count": scans_count,
     }
+
 
 def send_reset_email(to_email: str, code: str) -> bool:
     smtp_host = os.getenv("SMTP_HOST")
@@ -238,11 +254,11 @@ def send_reset_email(to_email: str, code: str) -> bool:
     smtp_user = os.getenv("SMTP_USER")
     smtp_password = os.getenv("SMTP_PASSWORD")
     smtp_from = os.getenv("SMTP_FROM", smtp_user or "noreply@esnafradar.com")
-    
+
     if not (smtp_host and smtp_user and smtp_password):
-        # SMTP ayarlanmadiginda gelistirici terminaline log basar
+        # SMTP ayarlanmadığında kod yalnızca sunucu konsoluna yazılır, API yanıtında asla döndürülmez
         print("\n==========================================")
-        print("[ESNAFRADAR SIFRE SIFIRLAMA KODU]")
+        print("[ESNAFRADAR SIFRE SIFIRLAMA KODU - SUNUCU KONSOLU]")
         print(f"Alici: {to_email}")
         print(f"6 Haneli Kod: {code}")
         print("Gecerlilik: 15 Dakika")
@@ -256,13 +272,13 @@ def send_reset_email(to_email: str, code: str) -> bool:
         msg["To"] = to_email
 
         html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 32px; border-radius: 16px; border: 1px solid #334155;">
-            <h2 style="color: #34d399; margin-top: 0;">EsnafRadar Şifre Sıfırlama</h2>
-            <p style="color: #94a3b8; font-size: 14px;">Hesabınız için şifre sıfırlama talebinde bulundunuz. Aşağıdaki 6 haneli doğrulama kodunu kullanarak yeni şifrenizi belirleyebilirsiniz:</p>
-            <div style="background: #1e293b; border: 1px solid #10b981; border-radius: 12px; padding: 18px; text-align: center; margin: 24px 0;">
-                <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #34d399;">{code}</span>
+        <div style="font-family: Inter, Arial, sans-serif; max-width: 500px; margin: 0 auto; background: #FFF8E7; color: #3F5E45; padding: 32px; border: 2px solid #3F5E45;">
+            <h2 style="color: #3F5E45; margin-top: 0;">EsnafRadar Şifre Sıfırlama</h2>
+            <p style="color: #3F5E45; font-size: 14px;">Hesabınız için şifre sıfırlama talebinde bulundunuz. Aşağıdaki 6 haneli doğrulama kodunu kullanarak yeni şifrenizi belirleyebilirsiniz:</p>
+            <div style="background: #E8DCC4; border: 2px solid #6F8F72; padding: 18px; text-align: center; margin: 24px 0;">
+                <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #3F5E45;">{code}</span>
             </div>
-            <p style="color: #64748b; font-size: 12px;">Bu kod 15 dakika boyunca geçerlidir. Eğer bu talebi siz yapmadıysanız bu mesajı görmezden gelebilirsiniz.</p>
+            <p style="color: #6F8F72; font-size: 12px;">Bu kod 15 dakika boyunca geçerlidir. Eğer bu talebi siz yapmadıysanız bu mesajı görmezden gelebilirsiniz.</p>
         </div>
         """
         msg.attach(MIMEText(html, "html"))
@@ -275,18 +291,14 @@ def send_reset_email(to_email: str, code: str) -> bool:
         print(f"[SMTP Gönderim Hatası]: {e}")
         return False
 
-# Anti-spam bellek havuzları (IP ve E-posta bazlı oran sınırlama)
-_ip_reset_history = defaultdict(list)
-_email_reset_history = defaultdict(list)
 
 @router.post("/forgot-password")
 async def forgot_password(
-    req: schemas.ForgotPasswordRequest, 
+    req: schemas.ForgotPasswordRequest,
     request: Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(database.get_db)
 ):
-    # 0. Turnstile bot koruması
     is_turnstile_valid = await verify_turnstile(req.turnstile_token)
     if not is_turnstile_valid:
         raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
@@ -294,9 +306,7 @@ async def forgot_password(
     now = datetime.utcnow()
     client_ip = request.client.host if request.client else "unknown"
 
-    # 1. IP bazlı spam koruması (Son 10 dakikada en fazla 10 talep)
-    _ip_reset_history[client_ip] = [t for t in _ip_reset_history[client_ip] if (now - t).total_seconds() < 600]
-    if len(_ip_reset_history[client_ip]) >= 10:
+    if not _check_rate_limit(db, "reset_ip", client_ip, window_seconds=600, max_requests=10):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Çok fazla istek gönderildi. Lütfen birkaç dakika sonra tekrar deneyiniz."
@@ -304,9 +314,7 @@ async def forgot_password(
 
     email_clean = req.email.strip().lower()
 
-    # 2. E-posta bazlı saatlik sınır (Son 1 saatte en fazla 5 talep)
-    _email_reset_history[email_clean] = [t for t in _email_reset_history[email_clean] if (now - t).total_seconds() < 3600]
-    if len(_email_reset_history[email_clean]) >= 5:
+    if not _check_rate_limit(db, "reset_email", email_clean, window_seconds=3600, max_requests=5):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Bu e-posta adresi için 1 saat içinde çok fazla sıfırlama talebinde bulunuldu. Lütfen daha sonra tekrar deneyiniz."
@@ -314,7 +322,6 @@ async def forgot_password(
 
     user = db.query(models.User).filter(models.User.email == email_clean).first()
 
-    # 3. 60 Saniyelik bekleme süresi (Cooldown - Kullanıcı spamını önler)
     if user and user.last_reset_request_at:
         elapsed = (now - user.last_reset_request_at).total_seconds()
         if elapsed < 60:
@@ -324,7 +331,8 @@ async def forgot_password(
                 detail=f"Yeni bir kod istemeden önce lütfen {remaining} saniye bekleyiniz."
             )
 
-    code = f"{random.randint(100000, 999999)}"
+    # Kriptografik olarak güvenli 6 haneli kod üretimi (secrets modülü)
+    code = f"{secrets.randbelow(900000) + 100000}"
     has_smtp = bool(os.getenv("SMTP_HOST") and os.getenv("SMTP_USER") and os.getenv("SMTP_PASSWORD"))
 
     if user:
@@ -338,19 +346,18 @@ async def forgot_password(
         else:
             send_reset_email(user.email, code)
 
-    _ip_reset_history[client_ip].append(now)
-    _email_reset_history[email_clean].append(now)
+    _record_rate_limit_hit(db, "reset_ip", client_ip)
+    _record_rate_limit_hit(db, "reset_email", email_clean)
 
-    # Güvenlik standardı: E-postanın kayıtlı olup olmadığını açık etmemek için standart mesaj dönülür
+    # Güvenlik: Sıfırlama kodu (dev_code) hiçbir koşulda HTTP yanıtında döndürülmez
     return {
         "message": "Şifre sıfırlama kodu kayıtlı e-posta adresinize gönderildi.",
-        "dev_code": code if not has_smtp and user else None,
         "cooldown_seconds": 60
     }
 
+
 @router.post("/reset-password")
 def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(database.get_db)):
-    # 1. Şifre güvenlik kriterleri kontrolü
     is_strong, err_msg = validate_password_strength(req.new_password)
     if not is_strong:
         raise HTTPException(status_code=400, detail=err_msg)
@@ -363,7 +370,6 @@ def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(data
 
     now = datetime.utcnow()
 
-    # 2. Kod süresi kontrolü (15 dakika)
     if user.reset_code_expires and user.reset_code_expires < now:
         user.reset_code = None
         user.reset_code_expires = None
@@ -371,8 +377,7 @@ def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(data
         db.commit()
         raise HTTPException(status_code=400, detail="Doğrulama kodunun 15 dakikalık süresi dolmuş. Lütfen yeniden kod isteyiniz.")
 
-    # 3. Kaba kuvvet (brute-force) koruması: Hatalı kod deneme kontrolü (Maksimum 5 deneme)
-    if user.reset_code != req.code.strip():
+    if not secrets.compare_digest(user.reset_code, req.code.strip()):
         user.reset_code_attempts = (user.reset_code_attempts or 0) + 1
         if user.reset_code_attempts >= 5:
             user.reset_code = None
@@ -390,7 +395,6 @@ def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(data
             detail=f"Geçersiz doğrulama kodu. (Kalan deneme hakkınız: {remaining_attempts})"
         )
 
-    # 4. Şifreyi güncelle ve kilit/sayaç alanlarını sıfırla
     user.hashed_password = auth.get_password_hash(req.new_password)
     user.reset_code = None
     user.reset_code_expires = None

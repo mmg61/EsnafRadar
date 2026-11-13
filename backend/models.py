@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -12,6 +13,7 @@ class User(Base):
     first_name = Column(String)
     last_name = Column(String)
     full_name = Column(String)
+    gemini_api_key = Column(String, nullable=True)
     failed_login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)
     reset_code = Column(String, nullable=True)
@@ -32,15 +34,15 @@ class Merchant(Base):
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     category = Column(String)
-    
+
     phone = Column(String)
     email = Column(String)
     website = Column(String)
     address = Column(String)
-    
+
     audit_data = Column(JSON)
     last_scanned_at = Column(DateTime, default=datetime.utcnow)
-    
+
     saved_leads = relationship("SavedLead", back_populates="merchant")
 
 
@@ -50,7 +52,7 @@ class SavedLead(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     merchant_id = Column(Integer, ForeignKey("merchants.id"))
-    
+
     status = Column(String, default="new")
     opportunity_score = Column(Integer, default=0)
     saved_at = Column(DateTime, default=datetime.utcnow)
@@ -74,7 +76,7 @@ class LeadNote(Base):
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     saved_lead = relationship("SavedLead", back_populates="notes")
 
 
@@ -87,5 +89,15 @@ class OutreachLog(Base):
     message_content = Column(Text)
     is_ai_generated = Column(Boolean, default=False)
     sent_at = Column(DateTime, default=datetime.utcnow)
-    
+
     saved_lead = relationship("SavedLead", back_populates="outreach_logs")
+
+
+class RateLimitLog(Base):
+    __tablename__ = "rate_limit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    bucket = Column(String, index=True, nullable=False)
+    identifier = Column(String, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+

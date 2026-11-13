@@ -1,9 +1,9 @@
 import csv
 import io
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Any
 from datetime import datetime
 
 import database, models, schemas, auth
@@ -17,6 +17,21 @@ STATUS_LABELS_TR = {
     "converted": "Satış Yapıldı",
     "rejected": "Reddedildi"
 }
+
+
+def _sanitize_csv_cell(val: Any) -> str:
+    """
+    CSV Enjeksiyon (Formula Injection) Koruması:
+    Excel veya LibreOffice Calc'ta formül olarak çalıştırılabilecek (=, +, -, @, Tab, CR)
+    karakterlerle başlayan hücrelerin başına tek tırnak (') ekler.
+    """
+    if val is None:
+        return ""
+    text = str(val).replace("\r", " ").replace("\n", " ").strip()
+    if text and text[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return f"'{text}"
+    return text
+
 
 @router.post("/save", response_model=schemas.SavedLeadResponse)
 def save_lead(
@@ -41,9 +56,8 @@ def save_lead(
     resolved_phone = request.phone or scraped_phone
     resolved_email = request.email or scraped_email
 
-    # 1. Merchant tablosunda var mı?
     merchant = db.query(models.Merchant).filter(models.Merchant.osm_id == request.osm_id).first()
-    
+
     if not merchant:
         merchant = models.Merchant(
             osm_id=request.osm_id,
@@ -76,7 +90,6 @@ def save_lead(
         db.commit()
         db.refresh(merchant)
 
-    # 2. Kullanıcı zaten bu esnafı kaydetmiş mi?
     existing_lead = db.query(models.SavedLead).filter(
         models.SavedLead.user_id == current_user.id,
         models.SavedLead.merchant_id == merchant.id
@@ -89,7 +102,6 @@ def save_lead(
         db.refresh(existing_lead)
         return existing_lead
 
-    # 3. Yeni SavedLead oluştur
     new_lead = models.SavedLead(
         user_id=current_user.id,
         merchant_id=merchant.id,
@@ -105,16 +117,22 @@ def save_lead(
 
 @router.get("", response_model=List[schemas.SavedLeadResponse])
 def get_saved_leads(
+    skip: int = Query(0, ge=0, description="Atlanacak kayıt sayısı"),
+    limit: int = Query(100, ge=1, le=500, description="Sayfa başına azami kayıt sayısı"),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """
-    Oturum açmış kullanıcının tüm kayıtlı lead'lerini döndürür.
+    Oturum açmış kullanıcının kayıtlı müşteri adaylarını sayfalı olarak döndürür.
     """
-    leads = db.query(models.SavedLead).filter(
-        models.SavedLead.user_id == current_user.id
-    ).order_by(models.SavedLead.saved_at.desc()).all()
-    
+    leads = (
+        db.query(models.SavedLead)
+        .filter(models.SavedLead.user_id == current_user.id)
+        .order_by(models.SavedLead.saved_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     return leads
 
 
@@ -124,14 +142,14 @@ def export_saved_leads_csv(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """
-    Kayıtlı tüm müşteri adaylarını Excel uyumlu UTF-8 BOM CSV formatında dışa aktarır.
+    Kayıtlı tüm müşteri adaylarını CSV Injection korumalı ve Excel uyumlu UTF-8 BOM CSV formatında dışa aktarır.
     """
     leads = db.query(models.SavedLead).filter(
         models.SavedLead.user_id == current_user.id
     ).order_by(models.SavedLead.saved_at.desc()).all()
 
     output = io.StringIO()
-    output.write("\ufeff")  # Excel Türkçe karakter uyumu için UTF-8 BOM
+    output.write("\ufeff")
     writer = csv.writer(output, delimiter=";")
 
     writer.writerow([
@@ -154,26 +172,26 @@ def export_saved_leads_csv(
     for lead in leads:
         m = lead.merchant
         notes_count = len(lead.notes or [])
-        last_note = lead.notes[0].content.replace("\n", " ") if notes_count > 0 else ""
+        last_note = lead.notes[0].content if notes_count > 0 else ""
         outreach_count = len(lead.outreach_logs or [])
         saved_date = lead.saved_at.strftime("%Y-%m-%d %H:%M") if lead.saved_at else ""
         reminder_date = lead.reminder_at.strftime("%Y-%m-%d %H:%M") if lead.reminder_at else ""
-        reminder_note = (lead.reminder_note or "").replace("\n", " ")
+        reminder_note = lead.reminder_note or ""
         writer.writerow([
-            m.name if m else "",
-            (m.category or "Genel") if m else "",
-            STATUS_LABELS_TR.get(lead.status, lead.status),
+            _sanitize_csv_cell(m.name if m else ""),
+            _sanitize_csv_cell((m.category or "Genel") if m else ""),
+            _sanitize_csv_cell(STATUS_LABELS_TR.get(lead.status, lead.status)),
             lead.opportunity_score,
-            (m.phone or "") if m else "",
-            (m.email or "") if m else "",
-            (m.website or "") if m else "",
-            (m.address or "") if m else "",
-            reminder_date,
-            reminder_note,
+            _sanitize_csv_cell((m.phone or "") if m else ""),
+            _sanitize_csv_cell((m.email or "") if m else ""),
+            _sanitize_csv_cell((m.website or "") if m else ""),
+            _sanitize_csv_cell((m.address or "") if m else ""),
+            _sanitize_csv_cell(reminder_date),
+            _sanitize_csv_cell(reminder_note),
             notes_count,
-            last_note,
+            _sanitize_csv_cell(last_note),
             outreach_count,
-            saved_date
+            _sanitize_csv_cell(saved_date)
         ])
 
     output.seek(0)
@@ -192,9 +210,6 @@ def update_lead_status(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """
-    Lead'in durumunu günceller (new, contacted, interested, converted, rejected).
-    """
     lead = db.query(models.SavedLead).filter(
         models.SavedLead.id == lead_id,
         models.SavedLead.user_id == current_user.id
@@ -216,9 +231,6 @@ def update_lead_reminder(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """
-    Müşteri adayı için geri arama / takip hatırlatıcısı kurar, günceller veya kaldırır.
-    """
     lead = db.query(models.SavedLead).filter(
         models.SavedLead.id == lead_id,
         models.SavedLead.user_id == current_user.id
@@ -335,7 +347,6 @@ def log_lead_outreach(
     )
     db.add(log_entry)
 
-    # Eğer müşteri durumu 'new' ise otomatik olarak 'contacted' aşamasına geçir
     if lead.status == "new":
         lead.status = "contacted"
 
@@ -350,9 +361,6 @@ def delete_lead(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    """
-    Lead'i kullanıcının listesinden siler.
-    """
     lead = db.query(models.SavedLead).filter(
         models.SavedLead.id == lead_id,
         models.SavedLead.user_id == current_user.id

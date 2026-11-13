@@ -250,7 +250,7 @@ def generate_demo_site_html(payload: Dict[str, Any]) -> str:
     }}
     .hero {{
       padding: 64px 0 56px;
-      background: linear-gradient(180deg, var(--primary-light) 0%, var(--bg) 100%);
+      background: var(--primary-light);
       border-bottom: 1px solid var(--border);
     }}
     .hero-badge {{

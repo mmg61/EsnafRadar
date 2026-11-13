@@ -3,50 +3,44 @@ import os
 import subprocess
 import time
 from typing import Set
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-import database, models
+import database, models, migrations
 from routers import auth, discovery, leads
 
-# Veritabanı tablolarını başlangıçta otomatik oluştur (yoksa)
 models.Base.metadata.create_all(bind=database.engine)
+migrations.run_migrations(database.engine)
 
+app = FastAPI(title="EsnafRadar API", version="2.2.0")
 
-def _ensure_sqlite_columns() -> None:
-    """Mevcut SQLite veritabanına yeni eklenen hatırlatıcı sütunlarını veri kaybı olmadan ekler."""
-    with database.engine.connect() as conn:
-        rows = conn.execute(text("PRAGMA table_info(saved_leads)")).fetchall()
-        existing_cols = {row[1] for row in rows}
-        if "reminder_at" not in existing_cols:
-            conn.execute(text("ALTER TABLE saved_leads ADD COLUMN reminder_at DATETIME"))
-        if "reminder_note" not in existing_cols:
-            conn.execute(text("ALTER TABLE saved_leads ADD COLUMN reminder_note VARCHAR"))
-        if "reminder_completed" not in existing_cols:
-            conn.execute(text("ALTER TABLE saved_leads ADD COLUMN reminder_completed BOOLEAN DEFAULT 0"))
-        conn.commit()
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    if origin.strip()
+]
 
-
-_ensure_sqlite_columns()
-
-app = FastAPI(title="EsnafRadar API", version="2.1.0")
-
-# CORS yapılandırması
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Açık tarayıcı sekmelerini takip eden durum değişkenleri
+# Yalnızca yerel masaüstü başlatıcıda (baslat.bat -> ENABLE_LOCAL_AUTO_SHUTDOWN=1) aktif olur;
+# çok kullanıcılı SaaS ortamında varsayılan olarak kapalıdır.
+ENABLE_LOCAL_AUTO_SHUTDOWN = os.getenv("ENABLE_LOCAL_AUTO_SHUTDOWN", "0").strip() in ("1", "true", "yes")
 _active_ws_clients: Set[WebSocket] = set()
 _last_client_ping_ts: float = 0.0
 
 
+def _is_loopback_host(host: str | None) -> bool:
+    return host in ("127.0.0.1", "::1", "localhost")
+
+
 def _shutdown_all_servers() -> None:
-    """Tarayıcı sekmesi kapatıldığında hem Frontend (5173) hem Backend (8000) sunucularını sonlandırır."""
+    if not ENABLE_LOCAL_AUTO_SHUTDOWN:
+        return
     if os.name == "nt":
         cmd = (
             'for /f "tokens=5" %a in (\'netstat -aon ^| findstr ":5173 " ^| findstr "LISTENING"\') '
@@ -59,8 +53,9 @@ def _shutdown_all_servers() -> None:
 
 
 async def _check_and_shutdown_after_grace(grace_seconds: float = 4.0) -> None:
+    if not ENABLE_LOCAL_AUTO_SHUTDOWN:
+        return
     await asyncio.sleep(grace_seconds)
-    # Sayfa yenilemesi (F5) yapıldıysa veya başka bir sekme açıksa kapatma
     if len(_active_ws_clients) > 0:
         return
     if (time.time() - _last_client_ping_ts) < (grace_seconds - 0.5):
@@ -74,37 +69,43 @@ def read_root():
 
 
 @app.post("/api/heartbeat")
-def client_heartbeat():
+def client_heartbeat(request: Request):
     global _last_client_ping_ts
-    _last_client_ping_ts = time.time()
+    if _is_loopback_host(request.client.host if request.client else None):
+        _last_client_ping_ts = time.time()
     return {"status": "alive"}
 
 
 @app.post("/api/tab-closed")
-async def client_tab_closed():
-    if len(_active_ws_clients) == 0:
+async def client_tab_closed(request: Request):
+    client_host = request.client.host if request.client else None
+    if ENABLE_LOCAL_AUTO_SHUTDOWN and _is_loopback_host(client_host) and len(_active_ws_clients) == 0:
         asyncio.create_task(_check_and_shutdown_after_grace(4.0))
-    return {"status": "closing_check_scheduled"}
+    return {"status": "ok"}
 
 
 @app.websocket("/api/keepalive")
 async def websocket_keepalive(websocket: WebSocket):
     global _last_client_ping_ts
+    client_host = websocket.client.host if websocket.client else None
     await websocket.accept()
-    _active_ws_clients.add(websocket)
-    _last_client_ping_ts = time.time()
+    if ENABLE_LOCAL_AUTO_SHUTDOWN and _is_loopback_host(client_host):
+        _active_ws_clients.add(websocket)
+        _last_client_ping_ts = time.time()
     try:
         while True:
             await websocket.receive_text()
-            _last_client_ping_ts = time.time()
+            if ENABLE_LOCAL_AUTO_SHUTDOWN and _is_loopback_host(client_host):
+                _last_client_ping_ts = time.time()
     except WebSocketDisconnect:
         pass
     except Exception:
         pass
     finally:
-        _active_ws_clients.discard(websocket)
-        if len(_active_ws_clients) == 0:
-            asyncio.create_task(_check_and_shutdown_after_grace(4.0))
+        if websocket in _active_ws_clients:
+            _active_ws_clients.discard(websocket)
+            if ENABLE_LOCAL_AUTO_SHUTDOWN and len(_active_ws_clients) == 0:
+                asyncio.create_task(_check_and_shutdown_after_grace(4.0))
 
 
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])

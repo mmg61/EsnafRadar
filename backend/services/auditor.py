@@ -1,8 +1,10 @@
 import asyncio
 import httpx
 from bs4 import BeautifulSoup
+import ipaddress
 import os
 import re
+import socket
 import time
 import json
 from urllib.parse import urljoin, urlparse, unquote
@@ -13,6 +15,82 @@ from typing import List, Optional
 from services.brands import resolve_known_brand_website
 
 load_dotenv()
+
+
+def _is_safe_public_url(raw_url: str) -> bool:
+    """
+    SSRF Koruması: Yalnızca http/https şemasına sahip ve genel (public) IP adreslerine
+    çözümlenen dış alan adlarına izin verir. localhost, 127.x, 10.x, 172.16-31.x, 192.168.x,
+    169.254.x (metadata) ve özel IPv6 adreslerini engeller.
+    """
+    try:
+        parsed = urlparse(raw_url.strip())
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = (parsed.hostname or "").strip().lower().rstrip(".")
+        if not hostname:
+            return False
+        if hostname in ("localhost", "0.0.0.0", "::1") or hostname.endswith((".local", ".internal", ".localhost", ".lan")):
+            return False
+
+        # Doğrudan IP girilmişse kontrol et
+        try:
+            ip_obj = ipaddress.ip_address(hostname)
+            if (
+                ip_obj.is_private
+                or ip_obj.is_loopback
+                or ip_obj.is_link_local
+                or ip_obj.is_multicast
+                or ip_obj.is_reserved
+                or ip_obj.is_unspecified
+            ):
+                return False
+            return True
+        except ValueError:
+            pass
+
+        # DNS çözümlemesi ile tüm hedef IP'leri kontrol et
+        addr_info = socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == "https" else 80), proto=socket.IPPROTO_TCP)
+        if not addr_info:
+            return False
+        for item in addr_info:
+            sockaddr = item[4]
+            ip_str = sockaddr[0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            if (
+                ip_obj.is_private
+                or ip_obj.is_loopback
+                or ip_obj.is_link_local
+                or ip_obj.is_multicast
+                or ip_obj.is_reserved
+                or ip_obj.is_unspecified
+            ):
+                return False
+        return True
+    except Exception:
+        return False
+
+
+async def _safe_get_with_redirects(
+    client: httpx.AsyncClient,
+    url: str,
+    timeout: float = 10.0,
+    max_redirects: int = 4
+) -> httpx.Response:
+    """Her yönlendirme (redirect) adımında SSRF kontrolü yaparak güvenli HTTP isteği gerçekleştirir."""
+    current_url = url
+    for _ in range(max_redirects + 1):
+        if not _is_safe_public_url(current_url):
+            raise ValueError(f"Güvenlik nedeniyle iç ağ veya geçersiz adrese erişim engellendi: {current_url}")
+        resp = await client.get(current_url, timeout=timeout, follow_redirects=False)
+        if resp.status_code in (301, 302, 303, 307, 308):
+            loc = resp.headers.get("location")
+            if not loc:
+                return resp
+            current_url = urljoin(str(resp.url), loc)
+            continue
+        return resp
+    raise ValueError("Çok fazla yönlendirme (redirect) tespit edildi.")
 
 class GeminiAuditResult(BaseModel):
     score: int
@@ -484,7 +562,12 @@ def _build_smart_fallback_analysis(name: str, category: str | None, result: dict
     )
 
 
-async def run_audit(name: str, website: str | None, category: Optional[str] = None) -> dict:
+async def run_audit(
+    name: str,
+    website: str | None,
+    category: Optional[str] = None,
+    user_gemini_key: Optional[str] = None
+) -> dict:
     result = {
         "score": 0,
         "ssl_valid": False,
@@ -536,6 +619,7 @@ async def run_audit(name: str, website: str | None, category: Optional[str] = No
             tone="kurumsal",
             focus_service="auto",
             audit_context=res,
+            user_gemini_key=user_gemini_key,
         )
         res["ai_engine_used"] = pitch_data.get("engine_used", "smart_hybrid_ai")
         res["recommended_package"] = pitch_data.get("recommended_package")
@@ -582,6 +666,13 @@ async def run_audit(name: str, website: str | None, category: Optional[str] = No
     if not clean_url.startswith("http"):
         clean_url = "https://" + clean_url
 
+    if not _is_safe_public_url(clean_url):
+        result["has_website"] = False
+        result["discovered_website"] = None
+        _build_smart_fallback_analysis(name, category, result)
+        await _attach_ai_pitches(result)
+        return result
+
     try:
         start_time = time.perf_counter()
         html_content = ""
@@ -590,7 +681,7 @@ async def run_audit(name: str, website: str | None, category: Optional[str] = No
         async with httpx.AsyncClient(verify=True, headers=headers) as client:
             try:
                 https_url = clean_url.replace("http://", "https://", 1)
-                resp = await client.get(https_url, timeout=10.0, follow_redirects=True)
+                resp = await _safe_get_with_redirects(client, https_url, timeout=10.0)
                 elapsed_ms = int((time.perf_counter() - start_time) * 1000)
                 final_url = str(resp.url)
                 result["ssl_valid"] = final_url.startswith("https")
@@ -598,17 +689,16 @@ async def run_audit(name: str, website: str | None, category: Optional[str] = No
                 result["response_time_ms"] = elapsed_ms
                 html_content = resp.text
             except Exception:
-                # SSL veya HTTPS bağlantı hatası durumunda HTTP üzerinden dene
+                # HTTPS sertifikası geçersiz veya HTTPS kapalıysa yalnızca güvenli HTTP üzerinden dene (verify=True korunur)
                 start_time = time.perf_counter()
                 http_url = clean_url.replace("https://", "http://", 1)
-                async with httpx.AsyncClient(verify=False, headers=headers) as fallback_client:
-                    resp = await fallback_client.get(http_url, timeout=10.0, follow_redirects=True)
-                    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-                    final_url = str(resp.url)
-                    result["ssl_valid"] = final_url.startswith("https")
-                    result["http_status"] = resp.status_code
-                    result["response_time_ms"] = elapsed_ms
-                    html_content = resp.text
+                resp = await _safe_get_with_redirects(client, http_url, timeout=10.0)
+                elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+                final_url = str(resp.url)
+                result["ssl_valid"] = False
+                result["http_status"] = resp.status_code
+                result["response_time_ms"] = elapsed_ms
+                html_content = resp.text
 
         result["discovered_website"] = final_url
         result["crawled_pages"].append("Ana Sayfa (/)")
@@ -678,8 +768,10 @@ async def run_audit(name: str, website: str | None, category: Optional[str] = No
         if subpage_urls:
             async def _fetch_subpage(sub_url: str) -> tuple[str, str]:
                 try:
-                    async with httpx.AsyncClient(verify=False, headers=headers, timeout=5.0, follow_redirects=True) as sc:
-                        r = await sc.get(sub_url)
+                    if not _is_safe_public_url(sub_url):
+                        return sub_url, ""
+                    async with httpx.AsyncClient(verify=True, headers=headers, timeout=5.0) as sc:
+                        r = await _safe_get_with_redirects(sc, sub_url, timeout=5.0, max_redirects=2)
                         if r.status_code == 200 and r.text:
                             return sub_url, r.text
                 except Exception:

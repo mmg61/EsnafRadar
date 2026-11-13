@@ -8,12 +8,13 @@ from services.overpass import search_merchants
 
 router = APIRouter()
 
+
 @router.get("/scan", response_model=List[schemas.MerchantBase])
 async def scan_area(
-    lat: float, 
-    lon: float, 
-    radius: int = 1000, 
-    category: str = "all", 
+    lat: float,
+    lon: float,
+    radius: int = 1000,
+    category: str = "all",
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -31,11 +32,10 @@ async def audit_merchant(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     from services.auditor import run_audit
-    
+
     existing_merchant = db.query(models.Merchant).filter(models.Merchant.osm_id == request.osm_id).first()
     now = datetime.utcnow()
 
-    # Önbellek kontrolü: Son 24 saat içinde denetlenmişse ve force_refresh istenmemişse önbellekten dön
     if (
         not request.force_refresh
         and existing_merchant
@@ -49,10 +49,13 @@ async def audit_merchant(
     ):
         return existing_merchant.audit_data
 
-    # İncelemeyi çalıştır
-    audit_result = await run_audit(name=request.name, website=request.website, category=request.category)
-    
-    # Eğer bu esnaf veritabanında kayıtlıysa inceleme verisini ve iletişim bilgilerini önbellekle
+    audit_result = await run_audit(
+        name=request.name,
+        website=request.website,
+        category=request.category,
+        user_gemini_key=current_user.gemini_api_key
+    )
+
     if existing_merchant:
         existing_merchant.audit_data = audit_result
         existing_merchant.last_scanned_at = now
@@ -63,7 +66,7 @@ async def audit_merchant(
         if not existing_merchant.phone and audit_result.get("scraped_phones"):
             existing_merchant.phone = audit_result["scraped_phones"][0]
         db.commit()
-    
+
     return audit_result
 
 
@@ -72,16 +75,22 @@ def get_ai_status(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     from services.pitch_generator import get_gemini_status
-    return get_gemini_status()
+    return get_gemini_status(user_key=current_user.gemini_api_key)
 
 
 @router.post("/ai-config", response_model=schemas.AIStatusResponse)
 def update_ai_config(
     request: schemas.AIConfigRequest,
+    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    from services.pitch_generator import save_gemini_api_key
-    return save_gemini_api_key(request.api_key)
+    from services.pitch_generator import get_gemini_status
+
+    clean_key = (request.api_key or "").strip()
+    current_user.gemini_api_key = clean_key if clean_key else None
+    db.commit()
+    db.refresh(current_user)
+    return get_gemini_status(user_key=current_user.gemini_api_key)
 
 
 @router.post("/generate-pitch", response_model=schemas.PitchGenerateResponse)
@@ -110,6 +119,7 @@ async def generate_custom_pitch(
         custom_instruction=request.custom_instruction,
         audit_context=request.audit_context if isinstance(request.audit_context, dict) else {},
         gemini_api_key=request.gemini_api_key,
+        user_gemini_key=current_user.gemini_api_key,
     )
 
     if request.osm_id:

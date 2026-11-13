@@ -7,8 +7,10 @@ PROJECT_MEMORY.md
 # Sistem ve Ortam Degiskenleri
 .env
 .env.*
+!.env.example
 *.env
 *.env.local
+.pytest_cache/
 
 # Veritabani Dosyalari
 *.db

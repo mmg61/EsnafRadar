@@ -24,7 +24,8 @@ if not exist "frontend\node_modules" (
 )
 
 REM 3. Arka uc (Port 8000) ve Arayuz (Port 5173) sunucularini tamamen GIZLI (penceresiz) baslat
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~dp0backend\venv\Scripts\uvicorn.exe' -ArgumentList 'main:app --host 127.0.0.1 --port 8000' -WorkingDirectory '%~dp0backend' -WindowStyle Hidden"
+set ENABLE_LOCAL_AUTO_SHUTDOWN=1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:ENABLE_LOCAL_AUTO_SHUTDOWN='1'; Start-Process -FilePath '%~dp0backend\venv\Scripts\uvicorn.exe' -ArgumentList 'main:app --host 127.0.0.1 --port 8000' -WorkingDirectory '%~dp0backend' -WindowStyle Hidden"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c npm run dev -- --host 127.0.0.1 --port 5173' -WorkingDirectory '%~dp0frontend' -WindowStyle Hidden"
 
 REM 4. Sunucularin hazir olmasini bekle, tarayiciyi ac ve bu CMD penceresini otomatik kapat
