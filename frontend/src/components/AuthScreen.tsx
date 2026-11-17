@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { loginUser, registerUser, forgotPassword, resetPassword } from '../api';
+import { type ThemeId } from '../theme';
 import {
   Radar,
   Users,
@@ -19,12 +20,17 @@ import {
 interface AuthScreenProps {
   onAuthSuccess: (accessToken: string) => void;
   initialError?: string | null;
+  currentTheme: ThemeId;
 }
 
 const TURNSTILE_SITE_KEY: string =
   import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialError }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({
+  onAuthSuccess,
+  initialError,
+  currentTheme,
+}) => {
   const [email, setEmail] = useState<string>(() => localStorage.getItem('remember_email') || '');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -143,7 +149,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
           turnstileContainerRef.current.innerHTML = '';
           currentWidget = win.turnstile.render(turnstileContainerRef.current, {
             sitekey: TURNSTILE_SITE_KEY,
-            theme: 'light',
+            theme: currentTheme === 'midnight' || currentTheme === 'anthracite' ? 'dark' : 'light',
             appearance: 'interaction-only',
             callback: (t: string) => setTurnstileToken(t),
           });
@@ -161,7 +167,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
         } catch (_) {}
       }
     };
-  }, [isLogin, isForgotPassword, forgotStep]);
+  }, [isLogin, isForgotPassword, forgotStep, currentTheme]);
 
   const getPasswordScore = (pwd: string) => {
     let score = 0;
@@ -303,80 +309,80 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF8E7] text-[#3F5E45] flex flex-col lg:flex-row font-sans relative overflow-hidden">
-      {/* SOL PANEL: Kurumsal Misyon ve İş Akışı (#3F5E45 Zemin - Vector0 Referansı) */}
-      <div className="relative z-10 lg:w-[46%] bg-[#3F5E45] text-[#FFF8E7] border-b-2 lg:border-b-0 lg:border-r-2 border-[#3F5E45] p-8 lg:p-14 flex flex-col justify-between order-2 lg:order-1">
+    <div className="min-h-screen bg-[var(--theme-canvas)] text-[var(--theme-contrast)] flex flex-col lg:flex-row font-sans relative overflow-hidden">
+      {/* SOL PANEL: Kurumsal Misyon ve İş Akışı */}
+      <div className="relative z-10 lg:w-[46%] bg-[var(--theme-hero-bg)] text-[var(--theme-hero-text)] border-b lg:border-b-0 lg:border-r border-[var(--theme-border)] p-8 lg:p-14 flex flex-col justify-between order-2 lg:order-1">
         <div className="flex-1 flex flex-col justify-center max-w-lg mx-auto w-full py-6">
           <div className="text-center flex flex-col items-center">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#6F8F72] border border-[#B7C9A8] text-[#FFF8E7] text-xs font-semibold mb-5">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--theme-primary)] border border-white/20 text-[var(--theme-on-primary)] text-xs font-semibold mb-5">
               <Layers size={14} />
               <span>Coğrafi Konum Tabanlı Dijital Denetim ve CRM</span>
             </div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-[#FFF8E7] leading-snug tracking-tight">
+            <h2 className="text-2xl lg:text-3xl font-bold text-[var(--theme-hero-text)] leading-snug tracking-tight">
               Yerel İşletmelerin Dijital Varlıklarını Analiz Edin ve Satış Süreçlerini Yönetin
             </h2>
-            <p className="mt-4 text-sm text-[#E8DCC4] leading-relaxed max-w-md">
+            <p className="mt-4 text-sm text-[var(--theme-hero-text)]/80 leading-relaxed max-w-md">
               Açık kaynaklı harita verileri üzerinden bölgesel tarama gerçekleştirin, işletmelerin web ve iletişim altyapılarını denetleyin ve potansiyel müşterilerinizi tek merkezden takip edin.
             </p>
           </div>
 
-          <div className="mt-10 space-y-0 border-l-2 border-[#B7C9A8] ml-4 sm:ml-8 max-w-md mx-auto">
+          <div className="mt-10 space-y-0 border-l border-white/25 ml-4 sm:ml-8 max-w-md mx-auto">
             <div className="relative pl-6 pb-7">
-              <div className="absolute -left-[9px] top-0.5 w-4 h-4 rounded-full bg-[#B7C9A8] border-2 border-[#3F5E45]" />
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#B7C9A8]">
+              <div className="absolute -left-[7px] top-1 w-3.5 h-3.5 rounded-full bg-[var(--theme-primary)] border border-white/60" />
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--theme-hero-text)]">
                 <MapPin size={14} />
                 <span>01. Bölgesel Tarama ve Keşif</span>
               </div>
-              <p className="mt-1.5 text-xs text-[#E8DCC4] leading-relaxed">
+              <p className="mt-1.5 text-xs text-[var(--theme-hero-text)]/75 leading-relaxed">
                 Overpass API motoru ve 40'tan fazla sektör filtresi ile hedef koordinattaki ticari işletmeleri anlık olarak tespit edin.
               </p>
             </div>
 
             <div className="relative pl-6 pb-7">
-              <div className="absolute -left-[9px] top-0.5 w-4 h-4 rounded-full bg-[#3F5E45] border-2 border-[#B7C9A8]" />
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#B7C9A8]">
+              <div className="absolute -left-[7px] top-1 w-3.5 h-3.5 rounded-full bg-[var(--theme-hero-bg)] border border-white/60" />
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--theme-hero-text)]">
                 <Globe size={14} />
                 <span>02. Dijital Varlık Röntgeni</span>
               </div>
-              <p className="mt-1.5 text-xs text-[#E8DCC4] leading-relaxed">
+              <p className="mt-1.5 text-xs text-[var(--theme-hero-text)]/75 leading-relaxed">
                 HTTP durum kodu, SSL sertifikası, mobil uyumluluk sinyali ve sosyal medya varlıklarını otomatik denetleyerek fırsat puanı hesaplayın.
               </p>
             </div>
 
             <div className="relative pl-6">
-              <div className="absolute -left-[9px] top-0.5 w-4 h-4 rounded-full bg-[#3F5E45] border-2 border-[#B7C9A8]" />
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#B7C9A8]">
+              <div className="absolute -left-[7px] top-1 w-3.5 h-3.5 rounded-full bg-[var(--theme-hero-bg)] border border-white/60" />
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--theme-hero-text)]">
                 <Users size={14} />
                 <span>03. Müşteri İlişkileri ve Doğrudan İletişim</span>
               </div>
-              <p className="mt-1.5 text-xs text-[#E8DCC4] leading-relaxed">
+              <p className="mt-1.5 text-xs text-[var(--theme-hero-text)]/75 leading-relaxed">
                 İncelenen işletmeleri müşteri aday listesine kaydedin, satış aşamalarını güncelleyin ve doğrudan kurumsal iletişim başlatın.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="pt-5 border-t border-[#6F8F72] flex flex-wrap items-center justify-center sm:justify-between gap-4 text-xs text-[#E8DCC4] max-w-lg mx-auto w-full">
+        <div className="pt-5 border-t border-white/15 flex flex-wrap items-center justify-center sm:justify-between gap-4 text-xs text-[var(--theme-hero-text)]/80 max-w-lg mx-auto w-full">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#B7C9A8] inline-block" />
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
             <span className="font-medium">Overpass Keşif Motoru: Aktif</span>
           </div>
-          <div className="flex items-center gap-4 text-[11px] text-[#E8DCC4]">
+          <div className="flex items-center gap-4 text-[11px] text-[var(--theme-hero-text)]/75">
             <span>Web Denetleyici: Hazır</span>
             <span>JWT & Turnstile Koruması</span>
           </div>
         </div>
       </div>
 
-      {/* SAĞ PANEL: Kimlik Doğrulama Form Alanı (#FFF8E7 Zemin) */}
-      <div className="relative z-10 flex-1 flex items-center justify-center p-6 sm:p-10 lg:p-16 order-1 lg:order-2">
-        <div className="relative z-10 w-full max-w-md bg-[#E8DCC4] rounded-xl border-2 border-[#3F5E45] overflow-hidden">
+      {/* SAĞ PANEL: Kimlik Doğrulama Form Alanı */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 sm:p-10 lg:p-16 order-1 lg:order-2">
+        <div className="relative z-10 w-full max-w-md bg-[var(--theme-surface)] rounded-2xl border border-[var(--theme-border)] shadow-sm overflow-hidden">
           <div className="p-6 sm:p-8">
             <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="w-11 h-11 rounded-xl bg-[#3F5E45] border border-[#3F5E45] flex items-center justify-center text-[#FFF8E7]">
+              <div className="w-11 h-11 rounded-xl bg-[var(--theme-primary)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-on-primary)]">
                 <Radar size={24} />
               </div>
-              <span className="text-xl font-bold tracking-tight text-[#3F5E45] leading-none">
+              <span className="text-xl font-bold tracking-tight text-[var(--theme-contrast)] leading-none">
                 EsnafRadar
               </span>
             </div>
@@ -384,10 +390,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
             {isForgotPassword ? (
               <div>
                 <div className="mb-6">
-                  <h1 className="text-xl font-bold text-[#3F5E45] tracking-tight">
+                  <h1 className="text-xl font-bold text-[var(--theme-contrast)] tracking-tight">
                     Şifremi Unuttum
                   </h1>
-                  <p className="text-xs text-[#3F5E45]/80 mt-1 leading-relaxed">
+                  <p className="text-xs text-[var(--theme-contrast)]/75 mt-1 leading-relaxed">
                     {forgotStep === 'request'
                       ? 'Kayıtlı e-posta adresinize 6 haneli tek kullanımlık doğrulama kodu göndereceğiz.'
                       : 'E-posta adresinize iletilen 6 haneli doğrulama kodunu ve yeni şifrenizi giriniz.'}
@@ -395,15 +401,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                 </div>
 
                 {authSuccess && (
-                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-[#B7C9A8] border border-[#3F5E45] text-[#3F5E45] text-xs font-medium">
-                    <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-[#3F5E45]" />
+                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-[var(--theme-muted)] border border-[var(--theme-border)] text-[var(--theme-contrast)] text-xs font-medium">
+                    <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-[var(--theme-primary)]" />
                     <span>{authSuccess}</span>
                   </div>
                 )}
 
                 {authError && (
-                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-rose-100 border border-rose-700 text-rose-900 text-xs font-medium">
-                    <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-700" />
+                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-500 text-xs font-medium">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-500" />
                     <span>{authError}</span>
                   </div>
                 )}
@@ -411,7 +417,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                 {forgotStep === 'request' ? (
                   <form onSubmit={handleForgotPasswordRequest} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                         Kayıtlı E-posta Adresi
                       </label>
                       <input
@@ -422,14 +428,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                         placeholder="ornek@eposta.com"
                         maxLength={100}
                         required
-                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-4 py-2.5 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                       />
                     </div>
 
-                    <div className="bg-[#FFF8E7] border border-[#3F5E45] rounded-xl p-3 flex flex-col items-center justify-center">
+                    <div className="bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl p-3 flex flex-col items-center justify-center">
                       <div ref={turnstileContainerRef} />
-                      <div className="flex items-center gap-1.5 text-[11px] text-[#3F5E45]/80 mt-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#6F8F72]" />
+                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--theme-contrast)]/75 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--theme-primary)]" />
                         <span>Cloudflare Turnstile ile korunuyor</span>
                       </div>
                     </div>
@@ -437,7 +443,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                     <button
                       type="submit"
                       disabled={isForgotLoading || cooldown > 0}
-                      className="w-full bg-[#6F8F72] hover:bg-[#3F5E45] text-[#FFF8E7] font-semibold py-2.5 rounded-xl text-sm border border-[#3F5E45] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 rounded-xl text-sm border border-[var(--theme-border)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isForgotLoading
                         ? 'Doğrulama Kodu Gönderiliyor...'
@@ -450,13 +456,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                   <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-semibold text-[#3F5E45]">
+                        <label className="block text-xs font-semibold text-[var(--theme-contrast)]">
                           6 Haneli Doğrulama Kodu
                         </label>
                         <button
                           type="button"
                           onClick={handlePasteFromClipboard}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFF8E7] border border-[#3F5E45] text-[11px] font-semibold text-[#3F5E45] hover:bg-[#B7C9A8] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--theme-canvas)] border border-[var(--theme-border)] text-[11px] font-semibold text-[var(--theme-contrast)] hover:bg-[var(--theme-muted)] transition-colors cursor-pointer"
                         >
                           <ClipboardPaste size={12} />
                           <span>Panodan Yapıştır</span>
@@ -476,17 +482,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                             onChange={e => handleOtpChange(idx, e.target.value)}
                             onKeyDown={e => handleOtpKeyDown(idx, e)}
                             onPaste={handleOtpPaste}
-                            className="w-full h-11 bg-[#FFF8E7] border border-[#3F5E45] rounded-xl text-center text-base font-bold text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                            className="w-full h-11 bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl text-center text-base font-bold text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                           />
                         ))}
                       </div>
-                      <p className="text-[11px] text-[#3F5E45]/80 mt-1.5">
+                      <p className="text-[11px] text-[var(--theme-contrast)]/75 mt-1.5">
                         Doğrulama kodu 15 dakika boyunca geçerlidir.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                         Yeni Şifre
                       </label>
                       <div className="relative">
@@ -500,12 +506,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                           placeholder="Yeni şifrenizi giriniz"
                           maxLength={64}
                           required
-                          className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-4 py-2.5 pr-10 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-4 py-2.5 pr-10 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                         />
                         <button
                           type="button"
                           onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#3F5E45] hover:text-[#6F8F72] cursor-pointer"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] cursor-pointer"
                           aria-label={showNewPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                         >
                           {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -513,17 +519,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                       </div>
 
                       {isCapsLockOn && (
-                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-amber-800 font-medium">
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-amber-500 font-medium">
                           <AlertCircle size={13} className="shrink-0" />
                           <span>Büyük harf kilidi (Caps Lock) açık</span>
                         </div>
                       )}
 
                       {newPassword.length > 0 && (
-                        <div className="mt-2.5 p-3 bg-[#FFF8E7] rounded-xl border border-[#3F5E45] space-y-2">
+                        <div className="mt-2.5 p-3 bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)] space-y-2">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-[#3F5E45]/80">Şifre Güvenliği:</span>
-                            <span className="font-bold text-[#3F5E45]">
+                            <span className="text-[var(--theme-contrast)]/80">Şifre Güvenliği:</span>
+                            <span className="font-bold text-[var(--theme-contrast)]">
                               {newPasswordScore === 4 ? 'Güçlü' : newPasswordScore >= 2 ? 'Orta' : 'Zayıf'}
                             </span>
                           </div>
@@ -532,22 +538,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                               <div
                                 key={step}
                                 className={`flex-1 rounded-full ${
-                                  newPasswordScore >= step ? 'bg-[#6F8F72]' : 'bg-[#E8DCC4]'
+                                  newPasswordScore >= step ? 'bg-[var(--theme-primary)]' : 'bg-[var(--theme-muted)]'
                                 }`}
                               />
                             ))}
                           </div>
                           <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] pt-1">
-                            <span className={`flex items-center gap-1 ${newPassword.length >= 8 ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                            <span className={`flex items-center gap-1 ${newPassword.length >= 8 ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                               {newPassword.length >= 8 ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 8 karakter
                             </span>
-                            <span className={`flex items-center gap-1 ${/[A-Z]/.test(newPassword) ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                            <span className={`flex items-center gap-1 ${/[A-Z]/.test(newPassword) ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                               {/[A-Z]/.test(newPassword) ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 1 büyük harf
                             </span>
-                            <span className={`flex items-center gap-1 ${/[a-z]/.test(newPassword) ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                            <span className={`flex items-center gap-1 ${/[a-z]/.test(newPassword) ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                               {/[a-z]/.test(newPassword) ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 1 küçük harf
                             </span>
-                            <span className={`flex items-center gap-1 ${/\d/.test(newPassword) ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                            <span className={`flex items-center gap-1 ${/\d/.test(newPassword) ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                               {/\d/.test(newPassword) ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 1 rakam
                             </span>
                           </div>
@@ -556,7 +562,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                         Yeni Şifre (Tekrar)
                       </label>
                       <div className="relative">
@@ -570,19 +576,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                           placeholder="Yeni şifrenizi tekrar giriniz"
                           maxLength={64}
                           required
-                          className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-4 py-2.5 pr-10 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-4 py-2.5 pr-10 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#3F5E45] hover:text-[#6F8F72] cursor-pointer"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] cursor-pointer"
                           aria-label={showConfirmNewPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                         >
                           {showConfirmNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                       </div>
                       {confirmNewPassword.length > 0 && newPassword !== confirmNewPassword && (
-                        <p className="text-[11px] text-rose-700 font-medium mt-1">
+                        <p className="text-[11px] text-rose-500 font-medium mt-1">
                           Şifreler birbiriyle eşleşmiyor.
                         </p>
                       )}
@@ -591,21 +597,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                     <button
                       type="submit"
                       disabled={isForgotLoading || newPasswordScore < 4 || newPassword !== confirmNewPassword}
-                      className="w-full bg-[#6F8F72] hover:bg-[#3F5E45] text-[#FFF8E7] font-semibold py-2.5 rounded-xl text-sm border border-[#3F5E45] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 rounded-xl text-sm border border-[var(--theme-border)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isForgotLoading ? 'Şifre Güncelleniyor...' : 'Yeni Şifreyi Kaydet'}
                     </button>
 
                     <div className="text-center pt-1">
                       {cooldown > 0 ? (
-                        <p className="text-xs text-[#3F5E45]/80">
-                          Yeni kod talep etmek için <span className="text-[#3F5E45] font-bold">{cooldown}s</span> bekleyiniz.
+                        <p className="text-xs text-[var(--theme-contrast)]/75">
+                          Yeni kod talep etmek için <span className="text-[var(--theme-contrast)] font-bold">{cooldown}s</span> bekleyiniz.
                         </p>
                       ) : (
                         <button
                           type="button"
                           onClick={() => handleForgotPasswordRequest()}
-                          className="text-xs font-semibold text-[#3F5E45] hover:underline cursor-pointer"
+                          className="text-xs font-semibold text-[var(--theme-primary)] hover:underline cursor-pointer"
                         >
                           Doğrulama kodunu tekrar gönder
                         </button>
@@ -614,7 +620,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                   </form>
                 )}
 
-                <div className="pt-4 mt-6 border-t border-[#3F5E45]/30 text-center">
+                <div className="pt-4 mt-6 border-t border-[var(--theme-border)] text-center">
                   <button
                     type="button"
                     onClick={() => {
@@ -625,7 +631,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                       setNewPassword('');
                       setConfirmNewPassword('');
                     }}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#3F5E45] hover:text-[#6F8F72] transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] transition-colors cursor-pointer"
                   >
                     <ArrowLeft size={15} />
                     <span>Giriş Ekranına Dön</span>
@@ -634,7 +640,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
               </div>
             ) : (
               <div>
-                <div className="grid grid-cols-2 bg-[#FFF8E7] border border-[#3F5E45] rounded-xl p-1 mb-6">
+                <div className="grid grid-cols-2 bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl p-1 mb-6">
                   <button
                     type="button"
                     onClick={() => {
@@ -650,8 +656,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                     }}
                     className={`py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                       isLogin
-                        ? 'bg-[#6F8F72] text-[#FFF8E7]'
-                        : 'text-[#3F5E45] hover:bg-[#E8DCC4]'
+                        ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                        : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
                     }`}
                   >
                     Giriş Yap
@@ -671,8 +677,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                     }}
                     className={`py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                       !isLogin
-                        ? 'bg-[#6F8F72] text-[#FFF8E7]'
-                        : 'text-[#3F5E45] hover:bg-[#E8DCC4]'
+                        ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                        : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
                     }`}
                   >
                     Yeni Hesap Oluştur
@@ -680,10 +686,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                 </div>
 
                 <div className="mb-5">
-                  <h1 className="text-xl font-bold text-[#3F5E45] tracking-tight">
+                  <h1 className="text-xl font-bold text-[var(--theme-contrast)] tracking-tight">
                     {isLogin ? "EsnafRadar'a Hoş Geldiniz" : 'Yeni Hesap Oluşturun'}
                   </h1>
-                  <p className="text-xs text-[#3F5E45]/80 mt-1">
+                  <p className="text-xs text-[var(--theme-contrast)]/75 mt-1">
                     {isLogin
                       ? 'Keşif motoru ve müşteri yönetim paneline erişmek için bilgilerinizi giriniz.'
                       : 'Platformu kullanmaya başlamak için aşağıdaki bilgileri doldurunuz.'}
@@ -691,15 +697,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                 </div>
 
                 {authSuccess && (
-                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-[#B7C9A8] border border-[#3F5E45] text-[#3F5E45] text-xs font-medium">
-                    <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-[#3F5E45]" />
+                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-[var(--theme-muted)] border border-[var(--theme-border)] text-[var(--theme-contrast)] text-xs font-medium">
+                    <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-[var(--theme-primary)]" />
                     <span>{authSuccess}</span>
                   </div>
                 )}
 
                 {authError && (
-                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-rose-100 border border-rose-700 text-rose-900 text-xs font-medium">
-                    <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-700" />
+                  <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-500 text-xs font-medium">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-500" />
                     <span>{authError}</span>
                   </div>
                 )}
@@ -708,7 +714,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                   {!isLogin && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                        <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                           Ad
                         </label>
                         <input
@@ -718,11 +724,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                           onChange={e => { setFirstName(e.target.value); if (authError) setAuthError(null); }}
                           placeholder="Adınız"
                           maxLength={50}
-                          className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                        <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                           Soyad
                         </label>
                         <input
@@ -732,14 +738,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                           onChange={e => { setLastName(e.target.value); if (authError) setAuthError(null); }}
                           placeholder="Soyadınız"
                           maxLength={50}
-                          className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                         />
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                    <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                       E-posta Adresi
                     </label>
                     <input
@@ -749,13 +755,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                       onChange={e => { setEmail(e.target.value); if (authError) setAuthError(null); }}
                       placeholder="ornek@eposta.com"
                       maxLength={100}
-                      className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                     />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-semibold text-[#3F5E45]">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)]">
                         Şifre
                       </label>
                       {isLogin && (
@@ -767,7 +773,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                             setAuthError(null);
                             setAuthSuccess(null);
                           }}
-                          className="text-xs font-semibold text-[#3F5E45] hover:underline cursor-pointer"
+                          className="text-xs font-semibold text-[var(--theme-primary)] hover:underline cursor-pointer"
                         >
                           Şifremi unuttum?
                         </button>
@@ -783,12 +789,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                         onKeyDown={handleKeyCapsLock}
                         placeholder="Şifrenizi giriniz"
                         maxLength={64}
-                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 pr-10 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 pr-10 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#3F5E45] hover:text-[#6F8F72] cursor-pointer"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] cursor-pointer"
                         aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -796,17 +802,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                     </div>
 
                     {isCapsLockOn && (
-                      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-amber-800 font-medium">
+                      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-amber-500 font-medium">
                         <AlertCircle size={13} className="shrink-0" />
                         <span>Büyük harf kilidi (Caps Lock) açık</span>
                       </div>
                     )}
 
                     {!isLogin && password.length > 0 && (
-                      <div className="mt-2.5 p-3 bg-[#FFF8E7] rounded-xl border border-[#3F5E45] space-y-2">
+                      <div className="mt-2.5 p-3 bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)] space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-[#3F5E45]/80">Şifre Güvenliği:</span>
-                          <span className="font-bold text-[#3F5E45]">
+                          <span className="text-[var(--theme-contrast)]/80">Şifre Güvenliği:</span>
+                          <span className="font-bold text-[var(--theme-contrast)]">
                             {passwordScore === 4 ? 'Güçlü' : passwordScore >= 2 ? 'Orta' : 'Zayıf'}
                           </span>
                         </div>
@@ -815,22 +821,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                             <div
                               key={step}
                               className={`flex-1 rounded-full ${
-                                passwordScore >= step ? 'bg-[#6F8F72]' : 'bg-[#E8DCC4]'
+                                passwordScore >= step ? 'bg-[var(--theme-primary)]' : 'bg-[var(--theme-muted)]'
                               }`}
                             />
                           ))}
                         </div>
                         <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] pt-1">
-                          <span className={`flex items-center gap-1 ${password.length >= 8 ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                          <span className={`flex items-center gap-1 ${password.length >= 8 ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                             {password.length >= 8 ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 8 karakter
                           </span>
-                          <span className={`flex items-center gap-1 ${/[A-Z]/.test(password) ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                          <span className={`flex items-center gap-1 ${/[A-Z]/.test(password) ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                             {/[A-Z]/.test(password) ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 1 büyük harf
                           </span>
-                          <span className={`flex items-center gap-1 ${/[a-z]/.test(password) ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                          <span className={`flex items-center gap-1 ${/[a-z]/.test(password) ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                             {/[a-z]/.test(password) ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 1 küçük harf
                           </span>
-                          <span className={`flex items-center gap-1 ${/\d/.test(password) ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                          <span className={`flex items-center gap-1 ${/\d/.test(password) ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/55'}`}>
                             {/\d/.test(password) ? <Check size={12} className="shrink-0" /> : <Circle size={8} className="shrink-0" />} En az 1 rakam
                           </span>
                         </div>
@@ -840,7 +846,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
 
                   {!isLogin && (
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                         Şifre (Tekrar)
                       </label>
                       <div className="relative">
@@ -853,19 +859,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                           onKeyDown={handleKeyCapsLock}
                           placeholder="Şifrenizi tekrar giriniz"
                           maxLength={64}
-                          className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 pr-10 text-sm text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 pr-10 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#3F5E45] hover:text-[#6F8F72] cursor-pointer"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] cursor-pointer"
                           aria-label={showConfirmPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
                         >
                           {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                       </div>
                       {confirmPassword.length > 0 && password !== confirmPassword && (
-                        <p className="text-[11px] text-rose-700 font-medium mt-1">
+                        <p className="text-[11px] text-rose-500 font-medium mt-1">
                           Şifreler birbiriyle eşleşmiyor.
                         </p>
                       )}
@@ -874,22 +880,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
 
                   {isLogin && (
                     <div className="flex items-center justify-between pt-0.5">
-                      <label className="inline-flex items-center gap-2 text-xs text-[#3F5E45] cursor-pointer select-none">
+                      <label className="inline-flex items-center gap-2 text-xs text-[var(--theme-contrast)] cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={rememberMe}
                           onChange={e => setRememberMe(e.target.checked)}
-                          className="accent-[#6F8F72] rounded cursor-pointer"
+                          className="accent-[var(--theme-primary)] rounded cursor-pointer"
                         />
                         <span>E-posta adresimi bu cihazda hatırla</span>
                       </label>
                     </div>
                   )}
 
-                  <div className="bg-[#FFF8E7] border border-[#3F5E45] rounded-xl p-3 flex flex-col items-center justify-center">
+                  <div className="bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl p-3 flex flex-col items-center justify-center">
                     <div ref={turnstileContainerRef} />
-                    <div className="flex items-center gap-1.5 text-[11px] text-[#3F5E45]/80 mt-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#6F8F72]" />
+                    <div className="flex items-center gap-1.5 text-[11px] text-[var(--theme-contrast)]/75 mt-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--theme-primary)]" />
                       <span>Cloudflare Turnstile ile korunuyor</span>
                     </div>
                   </div>
@@ -897,7 +903,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess, initialEr
                   <button
                     type="submit"
                     disabled={isAuthLoading}
-                    className="w-full bg-[#6F8F72] hover:bg-[#3F5E45] text-[#FFF8E7] font-semibold py-2.5 rounded-xl text-sm border border-[#3F5E45] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 rounded-xl text-sm border border-[var(--theme-border)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isAuthLoading
                       ? (isLogin ? 'Giriş Yapılıyor...' : 'Kayıt Oluşturuluyor...')

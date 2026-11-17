@@ -87,7 +87,7 @@ const statusOptions = [
   { value: 'new', label: 'Yeni', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
   { value: 'contacted', label: 'İletişime Geçildi', color: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' },
   { value: 'interested', label: 'İlgileniyor', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
-  { value: 'converted', label: 'Satış Yapıldı', color: 'bg-[#6F8F72] text-[#3F5E45] border-[#3F5E45]' },
+  { value: 'converted', label: 'Satış Yapıldı', color: 'bg-[var(--theme-primary)] text-[var(--theme-contrast)] border-[var(--theme-border)]' },
   { value: 'rejected', label: 'Reddedildi', color: 'bg-rose-500/10 text-rose-400 border-rose-500/30' },
 ];
 
@@ -457,12 +457,12 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
         <div
           className={`fixed bottom-6 right-6 z-[9998] flex items-center gap-2.5 px-4 py-3 rounded-xl border shadow-2xl text-xs font-medium ${
             feedback.type === 'success'
-              ? 'bg-[#FFF8E7] border-[#3F5E45] text-[#3F5E45]'
-              : 'bg-[#FFF8E7] border-rose-500/50 text-rose-300'
+              ? 'bg-[var(--theme-canvas)] border-[var(--theme-border)] text-[var(--theme-contrast)]'
+              : 'bg-[var(--theme-canvas)] border-rose-500/50 text-rose-300'
           }`}
         >
           {feedback.type === 'success' ? (
-            <CheckCircle2 size={16} className="text-[#3F5E45] shrink-0" />
+            <CheckCircle2 size={16} className="text-[var(--theme-contrast)] shrink-0" />
           ) : (
             <AlertCircle size={16} className="text-rose-400 shrink-0" />
           )}
@@ -487,7 +487,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
           <button
             type="button"
             onClick={() => setStatusFilter('reminders')}
-            className="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-[#3F5E45] text-xs font-bold transition-colors shrink-0 cursor-pointer"
+            className="px-3.5 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-[var(--theme-contrast)] text-xs font-bold transition-colors shrink-0 cursor-pointer"
           >
             Hatırlatıcıları Göster
           </button>
@@ -495,16 +495,16 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
       )}
 
       {/* Üst Filtre, Durum Sekmeleri & CSV Dışa Aktarım Barı */}
-      <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between bg-[#E8DCC4] p-4 rounded-xl border border-[#3F5E45]">
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between bg-[var(--theme-surface)] p-4 rounded-xl border border-[var(--theme-border)]">
         <div className="relative w-full lg:w-72">
-          <Search className="absolute left-3 top-2.5 text-[#3F5E45]/80" size={18} />
+          <Search className="absolute left-3 top-2.5 text-[var(--theme-contrast)]/80" size={18} />
           <input
             type="text"
             placeholder="İşletme adı, sektör veya adres ara..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             maxLength={100}
-            className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg pl-10 pr-4 py-2 text-sm text-[#3F5E45] focus:outline-none focus:border-[#3F5E45]"
+            className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg pl-10 pr-4 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
           />
         </div>
 
@@ -513,8 +513,8 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             onClick={() => setStatusFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               statusFilter === 'all'
-                ? 'bg-[#6F8F72] text-white'
-                : 'bg-[#FFF8E7] text-[#3F5E45]/80 hover:text-[#3F5E45] border border-[#3F5E45]'
+                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)]'
             }`}
           >
             Hepsi ({leads.length})
@@ -524,10 +524,10 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             onClick={() => setStatusFilter('reminders')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border inline-flex items-center gap-1.5 cursor-pointer ${
               statusFilter === 'reminders'
-                ? 'bg-amber-500 text-[#3F5E45] border-amber-500'
+                ? 'bg-amber-500 text-[var(--theme-contrast)] border-amber-500'
                 : activeReminders.length > 0
                   ? 'bg-amber-500/10 text-amber-300 border-amber-500/40 hover:bg-amber-500/20'
-                  : 'bg-[#FFF8E7] text-[#3F5E45]/80 hover:text-[#3F5E45] border-[#3F5E45]'
+                  : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
             }`}
           >
             <Bell size={13} />
@@ -542,8 +542,8 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                 onClick={() => setStatusFilter(opt.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
                   statusFilter === opt.value
-                    ? 'bg-[#6F8F72] text-white border-[#3F5E45]'
-                    : 'bg-[#FFF8E7] text-[#3F5E45]/80 hover:text-[#3F5E45] border-[#3F5E45]'
+                    ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
+                    : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
                 }`}
               >
                 {opt.label} ({count})
@@ -555,7 +555,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             <button
               onClick={handleExportCsv}
               disabled={isExporting}
-              className="ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#FFF8E7] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              className="ml-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
             >
               <Download size={14} />
               <span>{isExporting ? 'Aktarılıyor...' : 'CSV / Excel İndir'}</span>
@@ -566,16 +566,16 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
 
       {/* Lead Listesi */}
       {loading ? (
-        <div className="text-center py-12 text-[#3F5E45]/80 animate-pulse">
+        <div className="text-center py-12 text-[var(--theme-contrast)]/80 animate-pulse">
           Kayıtlı müşteriler yükleniyor...
         </div>
       ) : filteredLeads.length === 0 ? (
-        <div className="bg-[#E8DCC4] border border-[#3F5E45] rounded-2xl p-12 text-center">
-          <Building2 size={48} className="mx-auto text-[#3F5E45]0 mb-3" />
-          <h3 className="text-lg font-bold text-[#3F5E45]">Kayıtlı Müşteri Bulunamadı</h3>
-          <p className="text-[#3F5E45]0 text-sm mt-1 max-w-md mx-auto">
+        <div className="bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-2xl p-12 text-center">
+          <Building2 size={48} className="mx-auto text-[var(--theme-contrast)]/70 mb-3" />
+          <h3 className="text-lg font-bold text-[var(--theme-contrast)]">Kayıtlı Müşteri Bulunamadı</h3>
+          <p className="text-[var(--theme-contrast)]/70 text-sm mt-1 max-w-md mx-auto">
             Harita üzerinden işletmeleri tarayıp İnceleme Raporu ekranındaki
-            <span className="text-[#3F5E45] font-semibold"> "Müşteri Adaylarına Kaydet"</span> butonuna tıklayarak potansiyel müşterilerinizi buraya ekleyebilirsiniz.
+            <span className="text-[var(--theme-contrast)] font-semibold"> "Müşteri Adaylarına Kaydet"</span> butonuna tıklayarak potansiyel müşterilerinizi buraya ekleyebilirsiniz.
           </p>
         </div>
       ) : (
@@ -592,19 +592,19 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
             return (
               <div
                 key={lead.id}
-                className={`bg-[#E8DCC4] rounded-xl border transition-all p-5 flex flex-col justify-between shadow-lg ${
+                className={`bg-[var(--theme-surface)] rounded-xl border transition-all p-5 flex flex-col justify-between shadow-lg ${
                   isReminderDue
                     ? 'border-amber-500/70 ring-1 ring-amber-500/30'
-                    : 'border-[#3F5E45] hover:border-[#3F5E45]'
+                    : 'border-[var(--theme-border)] hover:border-[var(--theme-border)]'
                 }`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="min-w-0">
-                      <h3 className="font-bold text-base text-white truncate">{lead.merchant.name}</h3>
-                      <p className="text-xs text-[#3F5E45]/80 capitalize">{lead.merchant.category || 'Yerel İşletme'}</p>
+                      <h3 className="font-bold text-base text-[var(--theme-contrast)] truncate">{lead.merchant.name}</h3>
+                      <p className="text-xs text-[var(--theme-contrast)]/80 capitalize">{lead.merchant.category || 'Yerel İşletme'}</p>
                     </div>
-                    <span className="text-xs font-black px-2 py-0.5 rounded bg-[#6F8F72] text-[#3F5E45] border border-[#3F5E45] shrink-0">
+                    <span className="text-xs font-black px-2 py-0.5 rounded bg-[var(--theme-primary)] text-[var(--theme-contrast)] border border-[var(--theme-border)] shrink-0">
                       {lead.opportunity_score}/100 Puan
                     </span>
                   </div>
@@ -614,7 +614,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                     <div
                       className={`mb-3 px-3 py-2.5 rounded-lg border text-xs flex items-start justify-between gap-2 ${
                         lead.reminder_completed
-                          ? 'bg-[#6F8F72] border-[#3F5E45] text-[#3F5E45]'
+                          ? 'bg-[var(--theme-primary)] border-[var(--theme-border)] text-[var(--theme-contrast)]'
                           : isReminderDue
                             ? 'bg-amber-500/15 border-amber-500/50 text-amber-200'
                             : 'bg-sky-500/10 border-sky-500/30 text-sky-200'
@@ -646,7 +646,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                           type="button"
                           onClick={() => handleToggleReminderComplete(lead, true)}
                           title="Arandı / Tamamlandı Olarak İşaretle"
-                          className="px-2 py-1 rounded bg-[#6F8F72] hover:bg-[#3F5E45] text-[#3F5E45] font-bold text-[11px] shrink-0 cursor-pointer"
+                          className="px-2 py-1 rounded bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-contrast)] font-bold text-[11px] shrink-0 cursor-pointer"
                         >
                           Tamamla
                         </button>
@@ -655,17 +655,17 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                   )}
 
                   {/* İletişim & Konum Bilgileri */}
-                  <div className="space-y-1.5 text-xs text-[#3F5E45] my-3 bg-[#FFF8E7] p-3 rounded-lg border border-[#3F5E45]">
+                  <div className="space-y-1.5 text-xs text-[var(--theme-contrast)] my-3 bg-[var(--theme-canvas)] p-3 rounded-lg border border-[var(--theme-border)]">
                     {lead.merchant.address && (
-                      <p className="truncate text-[#3F5E45]/80">Adres: {lead.merchant.address}</p>
+                      <p className="truncate text-[var(--theme-contrast)]/80">Adres: {lead.merchant.address}</p>
                     )}
                     {lead.merchant.phone ? (
-                      <p className="text-[#3F5E45] font-medium">Tel: {lead.merchant.phone}</p>
+                      <p className="text-[var(--theme-contrast)] font-medium">Tel: {lead.merchant.phone}</p>
                     ) : (
-                      <p className="text-[#3F5E45]0 italic">Tel: Belirtilmemiş</p>
+                      <p className="text-[var(--theme-contrast)]/70 italic">Tel: Belirtilmemiş</p>
                     )}
                     {lead.merchant.email && (
-                      <p className="text-[#3F5E45] truncate">E-posta: {lead.merchant.email}</p>
+                      <p className="text-[var(--theme-contrast)] truncate">E-posta: {lead.merchant.email}</p>
                     )}
                     {lead.merchant.website ? (
                       <p className="truncate">
@@ -686,21 +686,21 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
 
                   {/* Son Not Özeti */}
                   {lastNote && (
-                    <div className="mb-3 px-3 py-2 rounded-lg bg-[#FFF8E7] border border-[#3F5E45] text-xs">
-                      <p className="text-[11px] text-[#3F5E45] font-semibold mb-0.5">Son Görüşme Notu:</p>
-                      <p className="text-[#3F5E45] line-clamp-2">{lastNote.content}</p>
+                    <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--theme-canvas)] border border-[var(--theme-border)] text-xs">
+                      <p className="text-[11px] text-[var(--theme-contrast)] font-semibold mb-0.5">Son Görüşme Notu:</p>
+                      <p className="text-[var(--theme-contrast)] line-clamp-2">{lastNote.content}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Alt Kısım: Durum Yönetimi, Notlar, Hatırlatıcı ve İletişim Eylemleri */}
-                <div className="pt-3 border-t border-[#3F5E45] space-y-2.5">
+                <div className="pt-3 border-t border-[var(--theme-border)] space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-[#3F5E45]/80">Aşama:</span>
+                    <span className="text-xs text-[var(--theme-contrast)]/80">Aşama:</span>
                     <select
                       value={lead.status}
                       onChange={e => handleStatusChange(lead.id, e.target.value)}
-                      className="bg-[#FFF8E7] border border-[#3F5E45] text-xs rounded-lg px-2.5 py-1 text-[#3F5E45] focus:outline-none focus:border-[#3F5E45] cursor-pointer"
+                      className="bg-[var(--theme-canvas)] border border-[var(--theme-border)] text-xs rounded-lg px-2.5 py-1 text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)] cursor-pointer"
                     >
                       {statusOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>
@@ -715,9 +715,9 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                     <button
                       type="button"
                       onClick={() => openLeadModal(lead, 'notes')}
-                      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-[#FFF8E7] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-[11px] font-medium transition-colors cursor-pointer"
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-[11px] font-medium transition-colors cursor-pointer"
                     >
-                      <StickyNote size={12} className="text-[#3F5E45] shrink-0" />
+                      <StickyNote size={12} className="text-[var(--theme-contrast)] shrink-0" />
                       <span>Notlar ({notesCount})</span>
                     </button>
 
@@ -727,7 +727,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                       className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-colors cursor-pointer ${
                         hasReminder && !lead.reminder_completed
                           ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40'
-                          : 'bg-[#FFF8E7] hover:bg-[#B7C9A8] text-[#3F5E45] border-[#3F5E45]'
+                          : 'bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border-[var(--theme-border)]'
                       }`}
                     >
                       <Bell size={12} className="text-amber-400 shrink-0" />
@@ -737,7 +737,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                     <button
                       type="button"
                       onClick={() => openLeadModal(lead, 'outreach')}
-                      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-[#FFF8E7] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-[11px] font-medium transition-colors cursor-pointer"
+                      className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-[11px] font-medium transition-colors cursor-pointer"
                     >
                       <History size={12} className="text-blue-400 shrink-0" />
                       <span>İletişim ({outreachCount})</span>
@@ -750,7 +750,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                       <button
                         type="button"
                         onClick={() => handleWhatsAppOutreach(lead)}
-                        className="flex-1 flex items-center justify-center gap-1.5 bg-[#6F8F72] hover:bg-[#6F8F72] text-white text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
                       >
                         <MessageSquare size={14} />
                         <span>WhatsApp</span>
@@ -758,7 +758,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                     ) : (
                       <button
                         disabled
-                        className="flex-1 flex items-center justify-center gap-1 bg-[#B7C9A8] text-[#3F5E45]0 text-xs py-2 rounded-lg cursor-not-allowed"
+                        className="flex-1 flex items-center justify-center gap-1 bg-[var(--theme-muted)] text-[var(--theme-contrast)]/70 text-xs py-2 rounded-lg cursor-not-allowed"
                       >
                         <Phone size={13} />
                         <span>Tel Yok</span>
@@ -781,7 +781,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                         type="button"
                         onClick={() => onInspectMerchant(lead.merchant)}
                         title="İşletme İnceleme Raporunu ve Hazır Teklifleri Aç"
-                        className="px-2.5 py-2 bg-[#FFF8E7] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
+                        className="px-2.5 py-2 bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] rounded-lg transition-colors cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium"
                       >
                         <FileSearch size={14} />
                         <span>İnceleme</span>
@@ -793,14 +793,14 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDelete(lead.id)}
-                          className="px-2 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-semibold rounded-lg cursor-pointer"
+                          className="px-2 py-1.5 bg-rose-600 hover:bg-rose-500 text-[var(--theme-on-primary)] text-[11px] font-semibold rounded-lg cursor-pointer"
                         >
                           Sil
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmDeleteLeadId(null)}
-                          className="p-1.5 text-[#3F5E45]/80 hover:text-[#3F5E45] rounded-lg cursor-pointer"
+                          className="p-1.5 text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] rounded-lg cursor-pointer"
                         >
                           <X size={14} />
                         </button>
@@ -809,7 +809,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteLeadId(lead.id)}
-                        className="p-2 text-[#3F5E45]/80 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                        className="p-2 text-[var(--theme-contrast)]/80 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                         title="Listeden Sil"
                       >
                         <Trash2 size={16} />
@@ -824,8 +824,8 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
 
         {/* Sayfalama (Pagination) Çubuğu */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between bg-[#E8DCC4] px-4 py-3 rounded-xl border border-[#3F5E45]">
-            <span className="text-xs font-semibold text-[#3F5E45]">
+          <div className="flex items-center justify-between bg-[var(--theme-surface)] px-4 py-3 rounded-xl border border-[var(--theme-border)]">
+            <span className="text-xs font-semibold text-[var(--theme-contrast)]">
               Toplam {filteredLeads.length} müşteri • Sayfa {safePage} / {totalPages}
             </span>
             <div className="flex items-center gap-2">
@@ -833,7 +833,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                 type="button"
                 disabled={safePage <= 1}
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                className="px-3 py-1.5 rounded-lg bg-[#FFF8E7] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold disabled:opacity-40 cursor-pointer"
               >
                 Önceki
               </button>
@@ -841,7 +841,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                 type="button"
                 disabled={safePage >= totalPages}
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                className="px-3 py-1.5 rounded-lg bg-[#6F8F72] hover:bg-[#3F5E45] text-[#FFF8E7] border border-[#3F5E45] text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] border border-[var(--theme-border)] text-xs font-semibold disabled:opacity-40 cursor-pointer"
               >
                 Sonraki
               </button>
@@ -854,32 +854,32 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
       {/* Not Defteri, Hatırlatıcı ve İletişim Geçmişi Modalı */}
       {selectedLead && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#E8DCC4] w-full max-w-2xl rounded-2xl border border-[#3F5E45] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-            <div className="bg-[#FFF8E7] px-6 py-4 border-b border-[#3F5E45] flex items-center justify-between">
+          <div className="bg-[var(--theme-surface)] w-full max-w-2xl rounded-2xl border border-[var(--theme-border)] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="bg-[var(--theme-canvas)] px-6 py-4 border-b border-[var(--theme-border)] flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-white">{selectedLead.merchant.name}</h3>
-                <p className="text-xs text-[#3F5E45]/80">Müşteri Not Defteri, Geri Arama Hatırlatıcısı ve İletişim Kayıtları</p>
+                <h3 className="text-lg font-bold text-[var(--theme-contrast)]">{selectedLead.merchant.name}</h3>
+                <p className="text-xs text-[var(--theme-contrast)]/80">Müşteri Not Defteri, Geri Arama Hatırlatıcısı ve İletişim Kayıtları</p>
               </div>
               <button
                 onClick={() => {
                   setSelectedLeadId(null);
                   setEditingNoteId(null);
                 }}
-                className="p-2 rounded-lg bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45]/80 hover:text-[#3F5E45] border border-[#3F5E45] cursor-pointer"
+                className="p-2 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)] cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Sekmeler */}
-            <div className="flex border-b border-[#3F5E45] bg-[#FFF8E7] px-6 pt-2 gap-4">
+            <div className="flex border-b border-[var(--theme-border)] bg-[var(--theme-canvas)] px-6 pt-2 gap-4">
               <button
                 type="button"
                 onClick={() => setDetailTab('notes')}
-                className={`pb-2.5 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`pb-2.5 text-xs font-semibold border-b transition-colors flex items-center gap-1.5 cursor-pointer ${
                   detailTab === 'notes'
-                    ? 'border-[#3F5E45] text-[#3F5E45]'
-                    : 'border-transparent text-[#3F5E45]/80 hover:text-[#3F5E45]'
+                    ? 'border-[var(--theme-border)] text-[var(--theme-contrast)]'
+                    : 'border-transparent text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)]'
                 }`}
               >
                 <StickyNote size={14} />
@@ -889,10 +889,10 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
               <button
                 type="button"
                 onClick={() => setDetailTab('reminder')}
-                className={`pb-2.5 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`pb-2.5 text-xs font-semibold border-b transition-colors flex items-center gap-1.5 cursor-pointer ${
                   detailTab === 'reminder'
                     ? 'border-amber-500 text-amber-400'
-                    : 'border-transparent text-[#3F5E45]/80 hover:text-[#3F5E45]'
+                    : 'border-transparent text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)]'
                 }`}
               >
                 <CalendarClock size={14} />
@@ -902,10 +902,10 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
               <button
                 type="button"
                 onClick={() => setDetailTab('outreach')}
-                className={`pb-2.5 text-xs font-semibold border-b-2 transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`pb-2.5 text-xs font-semibold border-b transition-colors flex items-center gap-1.5 cursor-pointer ${
                   detailTab === 'outreach'
-                    ? 'border-[#3F5E45] text-[#3F5E45]'
-                    : 'border-transparent text-[#3F5E45]/80 hover:text-[#3F5E45]'
+                    ? 'border-[var(--theme-border)] text-[var(--theme-contrast)]'
+                    : 'border-transparent text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)]'
                 }`}
               >
                 <History size={14} />
@@ -922,13 +922,13 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                       value={newNoteText}
                       onChange={e => setNewNoteText(e.target.value)}
                       placeholder="Görüşme detayları, karar verici ismi, fiyat teklifi vb. notunuzu yazınız..."
-                      className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl p-3 text-xs text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#3F5E45]"
+                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl p-3 text-xs text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/50 focus:outline-none focus:border-[var(--theme-border)]"
                     />
                     <div className="flex justify-end">
                       <button
                         type="submit"
                         disabled={isSavingNote || !newNoteText.trim()}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#6F8F72] hover:bg-[#6F8F72] text-white text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         <Plus size={14} />
                         <span>{isSavingNote ? 'Ekleniyor...' : 'Not Ekle'}</span>
@@ -938,16 +938,16 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
 
                   <div className="space-y-3 pt-2">
                     {!selectedLead.notes || selectedLead.notes.length === 0 ? (
-                      <p className="text-center text-xs text-[#3F5E45]0 py-6">
+                      <p className="text-center text-xs text-[var(--theme-contrast)]/70 py-6">
                         Bu müşteri için henüz görüşme notu eklenmemiş.
                       </p>
                     ) : (
                       selectedLead.notes.map(note => (
                         <div
                           key={note.id}
-                          className="bg-[#FFF8E7] p-4 rounded-xl border border-[#3F5E45] space-y-2"
+                          className="bg-[var(--theme-canvas)] p-4 rounded-xl border border-[var(--theme-border)] space-y-2"
                         >
-                          <div className="flex items-center justify-between text-[11px] text-[#3F5E45]/80">
+                          <div className="flex items-center justify-between text-[11px] text-[var(--theme-contrast)]/80">
                             <span>
                               {new Date(note.created_at).toLocaleString('tr-TR', {
                                 day: '2-digit',
@@ -964,7 +964,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                                   setEditingNoteId(note.id);
                                   setEditingNoteText(note.content);
                                 }}
-                                className="text-[#3F5E45]/80 hover:text-[#3F5E45] cursor-pointer"
+                                className="text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] cursor-pointer"
                                 title="Düzenle"
                               >
                                 <Edit3 size={13} />
@@ -972,7 +972,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleRemoveNote(selectedLead.id, note.id)}
-                                className="text-[#3F5E45]/80 hover:text-rose-400 cursor-pointer"
+                                className="text-[var(--theme-contrast)]/80 hover:text-rose-400 cursor-pointer"
                                 title="Sil"
                               >
                                 <Trash2 size={13} />
@@ -986,20 +986,20 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                                 rows={3}
                                 value={editingNoteText}
                                 onChange={e => setEditingNoteText(e.target.value)}
-                                className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-[#3F5E45]"
+                                className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg p-2.5 text-xs text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
                               />
                               <div className="flex justify-end gap-2">
                                 <button
                                   type="button"
                                   onClick={() => setEditingNoteId(null)}
-                                  className="px-3 py-1 rounded bg-[#E8DCC4] text-[#3F5E45] text-xs cursor-pointer"
+                                  className="px-3 py-1 rounded bg-[var(--theme-surface)] text-[var(--theme-contrast)] text-xs cursor-pointer"
                                 >
                                   İptal
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleSaveEditedNote(selectedLead.id, note.id)}
-                                  className="inline-flex items-center gap-1 px-3 py-1 rounded bg-[#6F8F72] text-white text-xs font-semibold cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-3 py-1 rounded bg-[var(--theme-primary)] text-[var(--theme-on-primary)] text-xs font-semibold cursor-pointer"
                                 >
                                   <Check size={12} />
                                   <span>Kaydet</span>
@@ -1007,7 +1007,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                               </div>
                             </div>
                           ) : (
-                            <p className="text-xs text-[#3F5E45] whitespace-pre-wrap leading-relaxed">
+                            <p className="text-xs text-[var(--theme-contrast)] whitespace-pre-wrap leading-relaxed">
                               {note.content}
                             </p>
                           )}
@@ -1020,43 +1020,43 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
 
               {detailTab === 'reminder' && (
                 <form onSubmit={handleSaveReminder} className="space-y-5">
-                  <div className="bg-[#FFF8E7] border border-[#3F5E45] rounded-xl p-4 space-y-3">
-                    <label className="block text-xs font-bold text-[#3F5E45]">
+                  <div className="bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl p-4 space-y-3">
+                    <label className="block text-xs font-bold text-[var(--theme-contrast)]">
                       Hızlı Zaman Seçimi
                     </label>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => applyReminderPreset('1h')}
-                        className="px-3 py-1.5 rounded-lg bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-medium cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-medium cursor-pointer"
                       >
                         1 Saat Sonra
                       </button>
                       <button
                         type="button"
                         onClick={() => applyReminderPreset('tomorrow10')}
-                        className="px-3 py-1.5 rounded-lg bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-medium cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-medium cursor-pointer"
                       >
                         Yarın 10:00
                       </button>
                       <button
                         type="button"
                         onClick={() => applyReminderPreset('tomorrow14')}
-                        className="px-3 py-1.5 rounded-lg bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-medium cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-medium cursor-pointer"
                       >
                         Yarın 14:00
                       </button>
                       <button
                         type="button"
                         onClick={() => applyReminderPreset('3d')}
-                        className="px-3 py-1.5 rounded-lg bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-medium cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-medium cursor-pointer"
                       >
                         3 Gün Sonra
                       </button>
                       <button
                         type="button"
                         onClick={() => applyReminderPreset('1w')}
-                        className="px-3 py-1.5 rounded-lg bg-[#E8DCC4] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-medium cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-medium cursor-pointer"
                       >
                         1 Hafta Sonra
                       </button>
@@ -1065,7 +1065,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                         Tarih ve Saat
                       </label>
                       <input
@@ -1073,11 +1073,11 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                         value={reminderDateInput}
                         onChange={e => setReminderDateInput(e.target.value)}
                         required
-                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-amber-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1.5">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
                         Hatırlatma Notu
                       </label>
                       <input
@@ -1086,7 +1086,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                         onChange={e => setReminderNoteInput(e.target.value)}
                         placeholder="Örn: İşletme sahibiyle fiyat görüşülecek"
                         maxLength={140}
-                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-[#3F5E45]/50 focus:outline-none focus:border-amber-500"
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/50 focus:outline-none focus:border-amber-500"
                       />
                     </div>
                   </div>
@@ -1098,7 +1098,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                           <button
                             type="button"
                             onClick={() => handleToggleReminderComplete(selectedLead, !selectedLead.reminder_completed)}
-                            className="px-3.5 py-2 rounded-xl bg-[#FFF8E7] hover:bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] text-xs font-semibold cursor-pointer"
+                            className="px-3.5 py-2 rounded-xl bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold cursor-pointer"
                           >
                             {selectedLead.reminder_completed ? 'Tekrar Aktif Et' : 'Arandı / Tamamlandı İşaretle'}
                           </button>
@@ -1117,7 +1117,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                     <button
                       type="submit"
                       disabled={isSavingReminder || !reminderDateInput}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[#3F5E45] text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-[var(--theme-contrast)] text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
                     >
                       <Bell size={14} />
                       <span>{isSavingReminder ? 'Kaydediliyor...' : 'Hatırlatıcıyı Kaydet'}</span>
@@ -1129,20 +1129,20 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
               {detailTab === 'outreach' && (
                 <div className="space-y-3">
                   {!selectedLead.outreach_logs || selectedLead.outreach_logs.length === 0 ? (
-                    <p className="text-center text-xs text-[#3F5E45]0 py-6">
+                    <p className="text-center text-xs text-[var(--theme-contrast)]/70 py-6">
                       Bu müşteriyle henüz WhatsApp veya E-posta üzerinden kayıtlı bir iletişim başlatılmamış.
                     </p>
                   ) : (
                     selectedLead.outreach_logs.map(log => (
                       <div
                         key={log.id}
-                        className="bg-[#FFF8E7] p-4 rounded-xl border border-[#3F5E45] space-y-2"
+                        className="bg-[var(--theme-canvas)] p-4 rounded-xl border border-[var(--theme-border)] space-y-2"
                       >
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-[#3F5E45]">
+                          <span className="font-semibold text-[var(--theme-contrast)]">
                             Kanal: {log.channel}
                           </span>
-                          <span className="text-[11px] text-[#3F5E45]/80">
+                          <span className="text-[11px] text-[var(--theme-contrast)]/80">
                             {new Date(log.sent_at).toLocaleString('tr-TR', {
                               day: '2-digit',
                               month: 'long',
@@ -1152,7 +1152,7 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
                             })}
                           </span>
                         </div>
-                        <p className="text-xs text-[#3F5E45] whitespace-pre-wrap leading-relaxed bg-[#FFF8E7] p-3 rounded-lg border border-[#3F5E45]">
+                        <p className="text-xs text-[var(--theme-contrast)] whitespace-pre-wrap leading-relaxed bg-[var(--theme-canvas)] p-3 rounded-lg border border-[var(--theme-border)]">
                           {log.message_content}
                         </p>
                       </div>

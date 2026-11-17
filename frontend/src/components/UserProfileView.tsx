@@ -116,7 +116,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
 
   if (loading) {
     return (
-      <div className="py-20 text-center text-[#3F5E45] font-semibold animate-pulse">
+      <div className="py-20 text-center text-[var(--theme-contrast)] font-semibold animate-pulse">
         Profil bilgileri yükleniyor...
       </div>
     );
@@ -125,18 +125,18 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Profil Başlık & Özet Kartı */}
-      <div className="bg-[#E8DCC4] p-6 rounded-xl border-2 border-[#3F5E45] flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)] flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-[#3F5E45] border-2 border-[#3F5E45] flex items-center justify-center text-[#FFF8E7] font-bold text-2xl">
+          <div className="w-16 h-16 rounded-full bg-[var(--theme-primary)] border border-[var(--theme-border)] flex items-center justify-center text-[var(--theme-on-primary)] font-bold text-2xl">
             {(profile?.first_name?.[0] || profile?.email?.[0] || 'U').toUpperCase()}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[#3F5E45]">
+            <h2 className="text-xl font-bold text-[var(--theme-contrast)]">
               {profile?.full_name || 'Kullanıcı'}
             </h2>
-            <p className="text-sm text-[#3F5E45]/80">{profile?.email}</p>
+            <p className="text-sm text-[var(--theme-contrast)]/80">{profile?.email}</p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] font-semibold">
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] font-semibold">
                 <CheckCircle2 size={12} /> Hesap Aktif
               </span>
             </div>
@@ -145,11 +145,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
 
         {/* İstatistik Rozetleri */}
         <div className="grid grid-cols-1 gap-3 w-full md:w-auto">
-          <div className="bg-[#FFF8E7] p-3 rounded-xl border border-[#3F5E45] text-center min-w-[140px]">
-            <p className="text-xs text-[#3F5E45] font-semibold flex items-center justify-center gap-1">
-              <Database size={13} className="text-[#3F5E45]" /> Kayıtlı Müşterilerim
+          <div className="bg-[var(--theme-canvas)] p-3 rounded-xl border border-[var(--theme-border)] text-center min-w-[140px]">
+            <p className="text-xs text-[var(--theme-contrast)] font-semibold flex items-center justify-center gap-1">
+              <Database size={13} className="text-[var(--theme-contrast)]" /> Kayıtlı Müşterilerim
             </p>
-            <p className="text-xl font-extrabold text-[#3F5E45] mt-0.5">
+            <p className="text-xl font-extrabold text-[var(--theme-contrast)] mt-0.5">
               {profile?.saved_leads_count || 0}
             </p>
           </div>
@@ -158,15 +158,15 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Form 1: Temel Bilgiler */}
-        <div className="bg-[#E8DCC4] p-6 rounded-xl border-2 border-[#3F5E45] flex flex-col justify-between">
+        <div className="bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)] flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2 text-[#3F5E45] mb-4 pb-3 border-b border-[#3F5E45]/30">
+            <div className="flex items-center gap-2 text-[var(--theme-contrast)] mb-4 pb-3 border-b border-[var(--theme-border)]">
               <User size={20} />
-              <h3 className="font-bold text-lg text-[#3F5E45]">Kişisel Bilgiler</h3>
+              <h3 className="font-bold text-lg text-[var(--theme-contrast)]">Kişisel Bilgiler</h3>
             </div>
 
             {infoSuccess && (
-              <div className="mb-4 p-3 rounded-lg bg-[#B7C9A8] border border-[#3F5E45] text-[#3F5E45] font-medium text-sm flex items-center gap-2">
+              <div className="mb-4 p-3 rounded-lg bg-[var(--theme-muted)] border border-[var(--theme-border)] text-[var(--theme-contrast)] font-medium text-sm flex items-center gap-2">
                 <CheckCircle2 size={16} /> {infoSuccess}
               </div>
             )}
@@ -178,41 +178,41 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
 
             <form onSubmit={handleUpdateInfo} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#3F5E45] mb-1">E-posta (Değiştirilemez)</label>
+                <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">E-posta (Değiştirilemez)</label>
                 <input
                   type="email"
                   value={profile?.email || ''}
                   disabled
-                  className="w-full bg-[#FFF8E7]/60 border border-[#3F5E45]/50 rounded-lg px-3 py-2 text-sm text-[#3F5E45]/70 cursor-not-allowed"
+                  className="w-full bg-[var(--theme-canvas)]/60 border border-[var(--theme-border)] rounded-lg px-3 py-2 text-sm text-[var(--theme-contrast)]/70 cursor-not-allowed"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Adınız</label>
+                  <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Adınız</label>
                   <input
                     type="text"
                     value={firstName}
                     onChange={e => setFirstName(e.target.value)}
                     required
-                    className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-3 py-2 text-sm text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                    className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Soyadınız</label>
+                  <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Soyadınız</label>
                   <input
                     type="text"
                     value={lastName}
                     onChange={e => setLastName(e.target.value)}
                     required
-                    className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-3 py-2 text-sm text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                    className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Hesap Oluşturulma Tarihi</label>
-                <p className="text-xs text-[#3F5E45] bg-[#FFF8E7] p-2.5 rounded-lg border border-[#3F5E45]">
+                <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Hesap Oluşturulma Tarihi</label>
+                <p className="text-xs text-[var(--theme-contrast)] bg-[var(--theme-canvas)] p-2.5 rounded-lg border border-[var(--theme-border)]">
                   {profile?.created_at
                     ? new Date(profile.created_at).toLocaleDateString('tr-TR', {
                         day: 'numeric',
@@ -226,7 +226,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
               <button
                 type="submit"
                 disabled={isUpdatingInfo}
-                className="w-full mt-4 bg-[#6F8F72] hover:bg-[#3F5E45] text-[#FFF8E7] font-semibold py-2.5 rounded-lg border border-[#3F5E45] transition-colors text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full mt-4 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 rounded-lg border border-[var(--theme-border)] transition-colors text-sm disabled:opacity-50 cursor-pointer"
               >
                 {isUpdatingInfo ? 'Kaydediliyor...' : 'Bilgileri Güncelle'}
               </button>
@@ -235,15 +235,15 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
         </div>
 
         {/* Form 2: Güvenlik & Şifre Değiştirme */}
-        <div className="bg-[#E8DCC4] p-6 rounded-xl border-2 border-[#3F5E45] flex flex-col justify-between">
+        <div className="bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)] flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2 text-[#3F5E45] mb-4 pb-3 border-b border-[#3F5E45]/30">
+            <div className="flex items-center gap-2 text-[var(--theme-contrast)] mb-4 pb-3 border-b border-[var(--theme-border)]">
               <KeyRound size={20} />
-              <h3 className="font-bold text-lg text-[#3F5E45]">Şifre Değiştir</h3>
+              <h3 className="font-bold text-lg text-[var(--theme-contrast)]">Şifre Değiştir</h3>
             </div>
 
             {passwordSuccess && (
-              <div className="mb-4 p-3 rounded-lg bg-[#B7C9A8] border border-[#3F5E45] text-[#3F5E45] font-medium text-sm flex items-center gap-2">
+              <div className="mb-4 p-3 rounded-lg bg-[var(--theme-muted)] border border-[var(--theme-border)] text-[var(--theme-contrast)] font-medium text-sm flex items-center gap-2">
                 <CheckCircle2 size={16} /> {passwordSuccess}
               </div>
             )}
@@ -255,7 +255,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
 
             <form onSubmit={handleUpdatePassword} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Mevcut Şifreniz</label>
+                <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Mevcut Şifreniz</label>
                 <div className="relative">
                   <input
                     type={showCurrentPass ? 'text' : 'password'}
@@ -263,12 +263,12 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
                     onChange={e => setCurrentPassword(e.target.value)}
                     required
                     placeholder="Mevcut şifreniz"
-                    className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-3 py-2 pr-10 text-sm text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                    className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 pr-10 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowCurrentPass(!showCurrentPass)}
-                    className="absolute right-3 top-2.5 text-[#3F5E45] hover:text-[#6F8F72] cursor-pointer"
+                    className="absolute right-3 top-2.5 text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] cursor-pointer"
                   >
                     {showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -276,7 +276,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Yeni Şifreniz</label>
+                <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Yeni Şifreniz</label>
                 <div className="relative">
                   <input
                     type={showNewPass ? 'text' : 'password'}
@@ -284,32 +284,32 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
                     onChange={e => setNewPassword(e.target.value)}
                     required
                     placeholder="Yeni şifreniz"
-                    className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-3 py-2 pr-10 text-sm text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                    className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 pr-10 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPass(!showNewPass)}
-                    className="absolute right-3 top-2.5 text-[#3F5E45] hover:text-[#6F8F72] cursor-pointer"
+                    className="absolute right-3 top-2.5 text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] cursor-pointer"
                   >
                     {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
 
                 {newPassword.length > 0 && (
-                  <div className="mt-2 space-y-1 p-2.5 bg-[#FFF8E7] rounded-lg border border-[#3F5E45]">
-                    <div className="h-1.5 w-full bg-[#E8DCC4] rounded-full overflow-hidden flex gap-1">
+                  <div className="mt-2 space-y-1 p-2.5 bg-[var(--theme-canvas)] rounded-lg border border-[var(--theme-border)]">
+                    <div className="h-1.5 w-full bg-[var(--theme-surface)] rounded-full overflow-hidden flex gap-1">
                       {[1, 2, 3, 4].map(idx => (
                         <div
                           key={idx}
                           className={`h-full flex-1 transition-all ${
-                            idx <= passedRules ? 'bg-[#6F8F72]' : 'bg-[#E8DCC4]'
+                            idx <= passedRules ? 'bg-[var(--theme-primary)]' : 'bg-[var(--theme-surface)]'
                           }`}
                         />
                       ))}
                     </div>
                     <div className="grid grid-cols-1 gap-1 text-[11px] pt-1">
                       {rules.map((r, i) => (
-                        <span key={i} className={`flex items-center gap-1.5 ${r.valid ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/60'}`}>
+                        <span key={i} className={`flex items-center gap-1.5 ${r.valid ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/60'}`}>
                           {r.valid ? <Check size={12} /> : <Circle size={8} />} {r.label}
                         </span>
                       ))}
@@ -319,21 +319,21 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Yeni Şifre (Tekrar)</label>
+                <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Yeni Şifre (Tekrar)</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
                   placeholder="Yeni şifrenizi tekrar giriniz"
-                  className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-3 py-2 text-sm text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                  className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isUpdatingPassword}
-                className="w-full mt-2 bg-[#3F5E45] hover:bg-[#6F8F72] text-[#FFF8E7] font-semibold py-2.5 rounded-lg border border-[#3F5E45] transition-colors text-sm disabled:opacity-50 cursor-pointer"
+                className="w-full mt-2 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 rounded-lg border border-[var(--theme-border)] transition-colors text-sm disabled:opacity-50 cursor-pointer"
               >
                 {isUpdatingPassword ? 'Şifre Değiştiriliyor...' : 'Şifreyi Güncelle'}
               </button>

@@ -7,12 +7,14 @@ import {
   saveLead,
   getSavedLeads
 } from './api';
+import { getSavedTheme, applyAndSaveTheme, type ThemeId } from './theme';
 import type { AuditResult, Merchant } from './types';
 import MapRadar from './components/MapRadar';
 import { SavedLeadsCRM } from './components/SavedLeadsCRM';
 import { UserProfileView } from './components/UserProfileView';
 import { AuditModal } from './components/AuditModal';
 import { AuthScreen } from './components/AuthScreen';
+import { SettingsView } from './components/SettingsView';
 import {
   Radar,
   Search,
@@ -22,12 +24,23 @@ import {
   CheckCircle2,
   AlertCircle,
   MapPin,
-  Bell
+  Bell,
+  Settings
 } from 'lucide-react';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [currentTheme, setCurrentTheme] = useState<ThemeId>(() => getSavedTheme());
+
+  React.useEffect(() => {
+    applyAndSaveTheme(currentTheme);
+  }, [currentTheme]);
+
+  const handleSelectTheme = (theme: ThemeId) => {
+    setCurrentTheme(theme);
+    applyAndSaveTheme(theme);
+  };
 
   // Tarayıcı sekmesi açık olduğu sürece arka uçla bağlantıyı koru; yerel masaüstü modunda sekme kapanınca sunucuları kapat
   React.useEffect(() => {
@@ -110,7 +123,7 @@ function App() {
   };
 
   // Tab & CRM state
-  const [activeTab, setActiveTab] = useState<'radar' | 'crm' | 'profile'>('radar');
+  const [activeTab, setActiveTab] = useState<'radar' | 'crm' | 'profile' | 'settings'>('radar');
   const [isSavingLead, setIsSavingLead] = useState(false);
   const [saveLeadSuccess, setSaveLeadSuccess] = useState(false);
   const [savedLeadCount, setSavedLeadCount] = useState(0);
@@ -316,6 +329,7 @@ function App() {
     return (
       <AuthScreen
         initialError={sessionError}
+        currentTheme={currentTheme}
         onAuthSuccess={accessToken => {
           setToken(accessToken);
           localStorage.setItem('token', accessToken);
@@ -326,20 +340,20 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF8E7] text-[#3F5E45] relative">
+    <div className="min-h-screen bg-[var(--theme-canvas)] text-[var(--theme-contrast)] relative">
       {/* Uygulama Bildirim Çubuğu (Toast) */}
       {appToast && (
         <div
-          className={`fixed bottom-6 right-6 z-[9998] flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 text-xs font-semibold ${
+          className={`fixed bottom-6 right-6 z-[9998] flex items-center gap-2.5 px-4 py-3 rounded-xl border text-xs font-semibold shadow-lg ${
             appToast.type === 'success'
-              ? 'bg-[#E8DCC4] border-[#3F5E45] text-[#3F5E45]'
-              : 'bg-rose-100 border-rose-700 text-rose-900'
+              ? 'bg-[var(--theme-surface)] border-[var(--theme-border)] text-[var(--theme-contrast)]'
+              : 'bg-rose-500/15 border-rose-500/30 text-rose-500'
           }`}
         >
           {appToast.type === 'success' ? (
-            <CheckCircle2 size={16} className="text-[#3F5E45] shrink-0" />
+            <CheckCircle2 size={16} className="text-[var(--theme-primary)] shrink-0" />
           ) : (
-            <AlertCircle size={16} className="text-rose-700 shrink-0" />
+            <AlertCircle size={16} className="text-rose-500 shrink-0" />
           )}
           <span>{appToast.message}</span>
         </div>
@@ -348,10 +362,10 @@ function App() {
       {/* İnceleme Yükleniyor Modal */}
       {isAuditing && (
         <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
-          <div className="bg-[#FFF8E7] p-8 rounded-xl border-2 border-[#3F5E45] flex flex-col items-center max-w-md text-center">
-            <Radar size={48} className="text-[#6F8F72] animate-spin mb-4" />
-            <h2 className="text-xl font-bold text-[#3F5E45]">İşletme İnceleniyor...</h2>
-            <p className="text-[#3F5E45]/80 mt-2 text-sm">
+          <div className="bg-[var(--theme-canvas)] p-8 rounded-2xl border border-[var(--theme-border)] flex flex-col items-center max-w-md text-center shadow-xl">
+            <Radar size={48} className="text-[var(--theme-primary)] animate-spin mb-4" />
+            <h2 className="text-xl font-bold text-[var(--theme-contrast)]">İşletme İnceleniyor...</h2>
+            <p className="text-[var(--theme-contrast)]/75 mt-2 text-sm">
               Web sitesi, telefon uyumu, Google görünürlüğü ve iletişim bilgileri kontrol ediliyor.
             </p>
           </div>
@@ -372,22 +386,24 @@ function App() {
         />
       )}
 
-      <header className="border-b-2 border-[#3F5E45] bg-[#E8DCC4] sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 text-[#3F5E45]">
-              <Radar size={24} />
-              <span className="text-xl font-bold">EsnafRadar</span>
+      <header className="border-b border-[var(--theme-border)] bg-[var(--theme-surface)] sticky top-0 z-50">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-2.5 text-[var(--theme-primary)]">
+              <div className="w-8 h-8 rounded-lg bg-[var(--theme-primary)] text-[var(--theme-on-primary)] flex items-center justify-center">
+                <Radar size={18} />
+              </div>
+              <span className="text-xl font-bold tracking-tight">EsnafRadar</span>
             </div>
 
             {/* Navigasyon Sekmeleri */}
-            <nav className="flex items-center gap-2 bg-[#FFF8E7] p-1 rounded-xl border border-[#3F5E45]">
+            <nav className="flex items-center gap-1.5 bg-[var(--theme-canvas)] p-1 rounded-xl border border-[var(--theme-border)]">
               <button
                 onClick={() => setActiveTab('radar')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                   activeTab === 'radar'
-                    ? 'bg-[#6F8F72] text-[#FFF8E7]'
-                    : 'text-[#3F5E45] hover:bg-[#E8DCC4]'
+                    ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                    : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
                 }`}
               >
                 <Compass size={16} />
@@ -397,8 +413,8 @@ function App() {
                 onClick={() => setActiveTab('crm')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                   activeTab === 'crm'
-                    ? 'bg-[#6F8F72] text-[#FFF8E7]'
-                    : 'text-[#3F5E45] hover:bg-[#E8DCC4]'
+                    ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                    : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
                 }`}
               >
                 <Users size={16} />
@@ -406,14 +422,14 @@ function App() {
                 {dueReminderCount > 0 && (
                   <span
                     title={`${dueReminderCount} müşterinin geri arama zamanı geldi`}
-                    className="inline-flex items-center gap-1 bg-amber-600 text-[#FFF8E7] text-xs px-2 py-0.5 rounded-full font-bold"
+                    className="inline-flex items-center gap-1 bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full font-bold"
                   >
                     <Bell size={11} />
                     {dueReminderCount}
                   </span>
                 )}
                 {savedLeadCount > 0 && (
-                  <span className="bg-[#B7C9A8] text-[#3F5E45] text-xs px-2 py-0.5 rounded-full font-bold border border-[#3F5E45]">
+                  <span className="bg-[var(--theme-muted)] text-[var(--theme-contrast)] text-xs px-2 py-0.5 rounded-full font-bold border border-[var(--theme-border)]">
                     {savedLeadCount}
                   </span>
                 )}
@@ -422,27 +438,42 @@ function App() {
                 onClick={() => setActiveTab('profile')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                   activeTab === 'profile'
-                    ? 'bg-[#6F8F72] text-[#FFF8E7]'
-                    : 'text-[#3F5E45] hover:bg-[#E8DCC4]'
+                    ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                    : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
                 }`}
               >
                 <User size={16} />
                 <span>Profilim</span>
               </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+                  activeTab === 'settings'
+                    ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                    : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
+                }`}
+              >
+                <Settings size={16} />
+                <span>Ayarlar</span>
+              </button>
             </nav>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#3F5E45] bg-[#FFF8E7] text-[#3F5E45] hover:bg-rose-100 hover:text-rose-900 transition-colors cursor-pointer font-semibold text-xs"
-          >
-            <span>Çıkış Yap</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-canvas)] text-[var(--theme-contrast)] hover:bg-rose-500/15 hover:text-rose-500 transition-colors cursor-pointer font-semibold text-xs"
+            >
+              <span>Çıkış Yap</span>
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {activeTab === 'profile' ? (
+        {activeTab === 'settings' ? (
+          <SettingsView currentTheme={currentTheme} onApplyTheme={handleSelectTheme} />
+        ) : activeTab === 'profile' ? (
           <UserProfileView token={token} />
         ) : activeTab === 'crm' ? (
           <SavedLeadsCRM
@@ -455,16 +486,16 @@ function App() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Sol Panel: Kontroller */}
             <div className="lg:col-span-1 space-y-6">
-              <div className="bg-[#E8DCC4] p-6 rounded-xl border-2 border-[#3F5E45]">
+              <div className="bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)]">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-[#3F5E45] flex items-center gap-2">
-                    <Compass size={18} className="text-[#3F5E45]" />
+                  <h2 className="text-lg font-bold text-[var(--theme-contrast)] flex items-center gap-2">
+                    <Compass size={18} className="text-[var(--theme-primary)]" />
                     Radar Kontrolü
                   </h2>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={handleGetLocation}
-                      className="inline-flex items-center gap-1 text-xs bg-[#FFF8E7] hover:bg-[#B7C9A8] px-2.5 py-1 rounded-lg text-[#3F5E45] border border-[#3F5E45] font-semibold transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1 text-xs bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] px-2.5 py-1 rounded-lg text-[var(--theme-contrast)] border border-[var(--theme-border)] font-semibold transition-colors cursor-pointer"
                     >
                       <MapPin size={12} />
                       <span>Konum</span>
@@ -475,13 +506,13 @@ function App() {
                 <div className="space-y-4">
                   {/* Sektör Seçici */}
                   <div>
-                    <label className="block text-xs font-semibold text-[#3F5E45] mb-1">
+                    <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">
                       Hedef Sektör (Akıllı Filtre)
                     </label>
                     <select
                       value={selectedCategory}
                       onChange={e => setSelectedCategory(e.target.value)}
-                      className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-3 py-2 text-xs text-[#3F5E45] font-medium focus:outline-none focus:border-[#6F8F72] cursor-pointer"
+                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-xs text-[var(--theme-contrast)] font-medium focus:outline-none focus:border-[var(--theme-primary)] cursor-pointer"
                     >
                       <option value="all">Tüm Sektörler (Geniş Tarama)</option>
                       <option value="food">Yeme & İçme (Restoran, Kafe, Fırın)</option>
@@ -495,7 +526,7 @@ function App() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Enlem (Lat)</label>
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Enlem (Lat)</label>
                       <input
                         type="number"
                         step="0.0001"
@@ -504,11 +535,11 @@ function App() {
                           const val = parseFloat(e.target.value);
                           if (!isNaN(val)) setCenter([val, center[1]]);
                         }}
-                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-2.5 py-1.5 text-xs text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-[#3F5E45] mb-1">Boylam (Lon)</label>
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Boylam (Lon)</label>
                       <input
                         type="number"
                         step="0.0001"
@@ -517,15 +548,15 @@ function App() {
                           const val = parseFloat(e.target.value);
                           if (!isNaN(val)) setCenter([center[0], val]);
                         }}
-                        className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-2.5 py-1.5 text-xs text-[#3F5E45] focus:outline-none focus:border-[#6F8F72]"
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-xs text-[#3F5E45] mb-1">
+                    <div className="flex justify-between text-xs text-[var(--theme-contrast)] mb-1">
                       <span className="font-semibold">Tarama Yarıçapı</span>
-                      <span className="text-[#3F5E45] font-bold">{radius} metre</span>
+                      <span className="text-[var(--theme-primary)] font-bold">{radius} metre</span>
                     </div>
                     <input
                       type="range"
@@ -534,14 +565,14 @@ function App() {
                       step="100"
                       value={radius}
                       onChange={e => setRadius(parseInt(e.target.value))}
-                      className="w-full accent-[#6F8F72] cursor-pointer"
+                      className="w-full accent-[var(--theme-primary)] cursor-pointer"
                     />
                   </div>
 
                   <button
                     onClick={() => handleScan()}
                     disabled={isScanning || isAuditing}
-                    className="w-full flex items-center justify-center gap-2 bg-[#6F8F72] hover:bg-[#3F5E45] text-[#FFF8E7] font-semibold py-2.5 rounded-lg border border-[#3F5E45] transition-colors disabled:opacity-50 text-sm cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 rounded-lg border border-[var(--theme-border)] transition-colors disabled:opacity-50 text-sm cursor-pointer"
                   >
                     {isScanning ? (
                       <span className="animate-pulse">Derin Tarama Yapılıyor...</span>
@@ -556,9 +587,9 @@ function App() {
               </div>
 
               {/* Bulunan Esnaflar Listesi */}
-              <div className="bg-[#E8DCC4] p-5 rounded-xl border-2 border-[#3F5E45] space-y-3">
+              <div className="bg-[var(--theme-surface)] p-5 rounded-xl border border-[var(--theme-border)] space-y-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-[#3F5E45]">
+                  <h2 className="text-sm font-bold text-[var(--theme-contrast)]">
                     Bulunan İşletmeler ({filteredMerchants.length}
                     {filteredMerchants.length !== merchants.length ? ` / ${merchants.length}` : ''})
                   </h2>
@@ -571,33 +602,33 @@ function App() {
                       placeholder="Sonuçlarda ara..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-[#FFF8E7] border border-[#3F5E45] rounded-lg px-3 py-1.5 text-xs text-[#3F5E45] placeholder-[#3F5E45]/50 focus:outline-none focus:border-[#6F8F72]"
+                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-1.5 text-xs text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                     />
                     <div className="flex flex-col gap-1.5">
-                      <label className="flex items-center gap-2 text-xs text-[#3F5E45] font-medium cursor-pointer select-none">
+                      <label className="flex items-center gap-2 text-xs text-[var(--theme-contrast)] font-medium cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={filterOnlyNoWebsite}
                           onChange={e => setFilterOnlyNoWebsite(e.target.checked)}
-                          className="accent-[#6F8F72] rounded cursor-pointer"
+                          className="accent-[var(--theme-primary)] rounded cursor-pointer"
                         />
                         <span>Sadece Web Sitesi Olmayanlar</span>
                       </label>
-                      <label className="flex items-center gap-2 text-xs text-[#3F5E45] font-medium cursor-pointer select-none">
+                      <label className="flex items-center gap-2 text-xs text-[var(--theme-contrast)] font-medium cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={filterOnlyWithPhone}
                           onChange={e => setFilterOnlyWithPhone(e.target.checked)}
-                          className="accent-[#6F8F72] rounded cursor-pointer"
+                          className="accent-[var(--theme-primary)] rounded cursor-pointer"
                         />
                         <span>Sadece Telefonu Olanlar</span>
                       </label>
-                      <label className="flex items-center gap-2 text-xs text-[#3F5E45] font-medium cursor-pointer select-none">
+                      <label className="flex items-center gap-2 text-xs text-[var(--theme-contrast)] font-medium cursor-pointer select-none">
                         <input
                           type="checkbox"
                           checked={hideCorporateChains}
                           onChange={e => setHideCorporateChains(e.target.checked)}
-                          className="accent-[#6F8F72] rounded cursor-pointer"
+                          className="accent-[var(--theme-primary)] rounded cursor-pointer"
                         />
                         <span>Kurumsal Zincirleri Gizle (Yerel Esnaf)</span>
                       </label>
@@ -607,45 +638,45 @@ function App() {
 
                 <div className="h-[280px] overflow-y-auto space-y-2.5 pr-1">
                   {merchants.length === 0 ? (
-                    <p className="text-[#3F5E45]/70 text-xs text-center mt-12 leading-relaxed">
+                    <p className="text-[var(--theme-contrast)]/70 text-xs text-center mt-12 leading-relaxed">
                       Haritada konumu seçin veya hedef pini sürükleyin, ardından "Radarı Başlat" butonuna basın.
                     </p>
                   ) : filteredMerchants.length === 0 ? (
-                    <p className="text-[#3F5E45]/70 text-xs text-center mt-12">
+                    <p className="text-[var(--theme-contrast)]/70 text-xs text-center mt-12">
                       Arama kriterine uygun işletme bulunamadı.
                     </p>
                   ) : (
                     filteredMerchants.map(m => (
                       <div
                         key={m.osm_id}
-                        className="p-3 bg-[#FFF8E7] rounded-xl border border-[#3F5E45] hover:bg-[#B7C9A8]/40 transition-colors cursor-pointer group"
+                        className="p-3 bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)] hover:bg-[var(--theme-muted)]/40 transition-colors cursor-pointer group"
                         onClick={() => handleAudit(m)}
                       >
                         <div className="flex items-start justify-between gap-1.5">
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#E8DCC4] text-[#3F5E45] border border-[#3F5E45] shrink-0">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--theme-surface)] text-[var(--theme-contrast)] border border-[var(--theme-border)] shrink-0">
                               {m.category_icon || 'ISL'}
                             </span>
-                            <h3 className="font-bold text-xs truncate text-[#3F5E45]">
+                            <h3 className="font-bold text-xs truncate text-[var(--theme-contrast)]">
                               {m.name}
                             </h3>
                           </div>
                           {m.lead_potential_score && (
-                            <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-[#B7C9A8] text-[#3F5E45] border border-[#3F5E45] shrink-0">
+                            <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] shrink-0">
                               %{m.lead_potential_score}
                             </span>
                           )}
                         </div>
 
-                        <p className="text-[11px] text-[#3F5E45]/80 mt-0.5 truncate">
+                        <p className="text-[11px] text-[var(--theme-contrast)]/75 mt-0.5 truncate">
                           {m.category_label || m.category}
                         </p>
 
-                        <div className="flex items-center justify-between text-[10px] mt-2 pt-1.5 border-t border-[#3F5E45]/20">
-                          <span className={m.phone ? 'text-[#3F5E45] font-semibold' : 'text-[#3F5E45]/50'}>
+                        <div className="flex items-center justify-between text-[10px] mt-2 pt-1.5 border-t border-[var(--theme-border)]">
+                          <span className={m.phone ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/50'}>
                             {m.phone ? 'Tel: Mevcut' : 'Tel: Yok'}
                           </span>
-                          <span className={m.website ? 'text-[#3F5E45] font-semibold' : 'text-amber-800 font-semibold'}>
+                          <span className={m.website ? 'text-[var(--theme-primary)] font-semibold' : 'text-amber-600 font-semibold'}>
                             {m.website
                               ? m.is_corporate_chain
                                 ? 'Kurumsal Web'
