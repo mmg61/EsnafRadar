@@ -248,6 +248,25 @@ def update_user_profile(
     }
 
 
+@router.delete("/me")
+def delete_user_account(
+    req: schemas.DeleteAccountRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if not auth.verify_password(req.password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mevcut şifreniz hatalı. Hesap silme işlemi iptal edildi.")
+
+    # Kullanıcının kayıtlı müşterilerine ait notları, iletişim geçmişini ve müşteri kayıtlarını temizle
+    user_leads = db.query(models.SavedLead).filter(models.SavedLead.user_id == current_user.id).all()
+    for lead in user_leads:
+        db.delete(lead)
+
+    db.delete(current_user)
+    db.commit()
+    return {"message": "Hesabınız ve tüm verileriniz kalıcı olarak silindi."}
+
+
 def send_reset_email(to_email: str, code: str) -> bool:
     smtp_host = os.getenv("SMTP_HOST")
     smtp_port = int(os.getenv("SMTP_PORT", 587))

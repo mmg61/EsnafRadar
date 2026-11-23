@@ -33,6 +33,10 @@ class UserUpdate(BaseModel):
     current_password: Optional[str] = Field(None, max_length=128)
     new_password: Optional[str] = Field(None, min_length=8, max_length=128)
 
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(..., min_length=1, max_length=128)
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
     turnstile_token: Optional[str] = Field(None, max_length=2048)

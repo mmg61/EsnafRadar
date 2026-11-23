@@ -212,6 +212,22 @@ export const updateUserProfile = async (
   return response.json();
 };
 
+export const deleteUserAccount = async (password: string, token: string): Promise<{ message: string }> => {
+  const response = await fetch(`${API_URL}/auth/me`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ password })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Hesap silinemedi');
+  }
+  return response.json();
+};
+
 export const saveLead = async (
   leadData: {
     osm_id: string;

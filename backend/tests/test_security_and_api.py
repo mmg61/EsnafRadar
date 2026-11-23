@@ -137,3 +137,26 @@ def test_per_user_gemini_key_isolation_and_leads_pagination():
     )
     assert leads_res.status_code == 200
     assert isinstance(leads_res.json(), list)
+
+    # Hatalı şifreyle hesap silme reddedilmelidir
+    del_bad = client.request(
+        "DELETE",
+        "/api/auth/me",
+        json={"password": "WrongPassword123"},
+        headers={"Authorization": f"Bearer {token_b}"}
+    )
+    assert del_bad.status_code == 400
+
+    # Doğru şifreyle hesap kalıcı olarak silinmelidir
+    del_ok = client.request(
+        "DELETE",
+        "/api/auth/me",
+        json={"password": "Password123"},
+        headers={"Authorization": f"Bearer {token_b}"}
+    )
+    assert del_ok.status_code == 200
+
+    # Silinen hesapla profil erişimi 401 dönmelidir
+    me_after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token_b}"})
+    assert me_after.status_code == 401
+

@@ -23,7 +23,9 @@ import {
   ArrowRight,
   LayoutTemplate,
   Monitor,
-  Smartphone
+  Smartphone,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { getAiStatus, saveAiConfig, generateCustomPitch, exportAuditPdf, generateDemoSite } from '../api';
 
@@ -51,13 +53,11 @@ function normalizeAndDeduplicatePhones(rawPhones: (string | null | undefined)[])
 
   for (const raw of rawPhones) {
     if (!raw || typeof raw !== 'string') continue;
-    // Noktalı virgül veya virgülle ayrılmış birden fazla numara varsa parçala
     const parts = raw.split(/[;,]/);
     for (const part of parts) {
       let digits = part.replace(/\D/g, '');
       if (!digits) continue;
 
-      // 444 XX XX (7 haneli çağrı merkezi)
       if (digits.length === 7 && digits.startsWith('444')) {
         const key = digits;
         if (!seenKeys.has(key)) {
@@ -67,7 +67,6 @@ function normalizeAndDeduplicatePhones(rawPhones: (string | null | undefined)[])
         continue;
       }
 
-      // Uluslararası ülke kodu (+90 / 0090 / 900) temizliği
       if (digits.length === 14 && digits.startsWith('0090')) {
         digits = '0' + digits.slice(4);
       } else if (digits.length === 13 && digits.startsWith('900')) {
@@ -85,7 +84,6 @@ function normalizeAndDeduplicatePhones(rawPhones: (string | null | undefined)[])
           result.push(formatted);
         }
       } else if (digits.length >= 7) {
-        // Diğer formatlar için son 10 haneyi anahtar olarak kullan
         const fallbackKey = digits.slice(-10);
         if (!seenKeys.has(fallbackKey)) {
           seenKeys.add(fallbackKey);
@@ -115,6 +113,11 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // Detayları gizleyen / butonla açan durumlar
+  const [showOpportunities, setShowOpportunities] = useState(false);
+  const [showTechnicalChecklist, setShowTechnicalChecklist] = useState(false);
+  const [showPitchCustomizer, setShowPitchCustomizer] = useState(false);
 
   // Canlı Örnek Site Önizleme Durumları
   const [demoSiteHtml, setDemoSiteHtml] = useState<string>('');
@@ -151,10 +154,12 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [recommendedPackage, setRecommendedPackage] = useState<string>('');
   const [valuePropositions, setValuePropositions] = useState<string[]>([]);
 
-
   useEffect(() => {
     if (!auditResult) return;
     setMainTab('overview');
+    setShowOpportunities(false);
+    setShowTechnicalChecklist(false);
+    setShowPitchCustomizer(false);
     setDemoSiteHtml('');
     setWhatsappPitch(auditResult.sales_pitch_whatsapp || '');
     setEmailSubject(
@@ -172,7 +177,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
     );
     setRecommendedPackage(auditResult.recommended_package || '');
     setValuePropositions(auditResult.value_propositions || []);
-
   }, [auditResult]);
 
   useEffect(() => {
@@ -187,7 +191,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const merchant = auditResult.merchant || {};
   const effectiveWebsite = auditResult.discovered_website || merchant.website || null;
 
-  // Tüm telefon numaralarını (+90 ve 0 farkını gidererek) tekilleştir
   const allPhones: string[] = normalizeAndDeduplicatePhones([
     merchant.phone,
     auditResult.scraped_whatsapp,
@@ -278,7 +281,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       setPitchStatusMessage('PDF inceleme raporu bilgisayarınıza indirildi.');
       setTimeout(() => setPitchStatusMessage(null), 3500);
     } catch (err: unknown) {
-      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'PDF raporu indirilemedi.');
+      setPitchStatusMessage((err instanceof Error ? err.message : '') || 'PDF raporu indirilemedi.');
     } finally {
       setIsExportingPdf(false);
     }
@@ -305,7 +308,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       );
       setDemoSiteHtml(res.html_content || '');
     } catch (err: unknown) {
-      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'Örnek site taslağı oluşturulamadı.');
+      setPitchStatusMessage((err instanceof Error ? err.message : '') || 'Örnek site taslağı oluşturulamadı.');
     } finally {
       setIsGeneratingDemoSite(false);
     }
@@ -352,7 +355,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       );
       setTimeout(() => setPitchStatusMessage(null), 4000);
     } catch (err: unknown) {
-      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'Anahtar kaydedilemedi.');
+      setPitchStatusMessage((err instanceof Error ? err.message : '') || 'Anahtar kaydedilemedi.');
     } finally {
       setIsSavingApiKey(false);
     }
@@ -387,7 +390,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       setRecommendedPackage(res.recommended_package || '');
       setValuePropositions(res.value_propositions || []);
 
-
       if (onAuditResultUpdate) {
         onAuditResultUpdate({
           ...auditResult,
@@ -406,7 +408,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       setPitchStatusMessage('Teklif metinleri seçtiğiniz ayarlara göre yenilendi.');
       setTimeout(() => setPitchStatusMessage(null), 4000);
     } catch (err: unknown) {
-      setPitchStatusMessage((err instanceof Error ? err.message : "") || 'Teklif oluşturulurken bir hata oluştu.');
+      setPitchStatusMessage((err instanceof Error ? err.message : '') || 'Teklif oluşturulurken bir hata oluştu.');
     } finally {
       setIsGeneratingPitch(false);
     }
@@ -445,53 +447,37 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   const checkItems = [
     { label: 'Web Sitesi', ok: Boolean(auditResult.has_website), okText: 'Mevcut', failText: 'Yok' },
-    { label: 'Güvenli Bağlantı (Kilit Simgesi)', ok: Boolean(auditResult.ssl_valid), okText: 'Güvenli', failText: 'Yok' },
+    { label: 'Güvenli Bağlantı (SSL)', ok: Boolean(auditResult.ssl_valid), okText: 'Güvenli', failText: 'Yok' },
     { label: 'Telefon ve Tablet Uyumu', ok: Boolean(auditResult.mobile_ready), okText: 'Uyumlu', failText: 'Uyumsuz' },
     { label: 'Google Arama Başlığı', ok: Boolean(auditResult.has_title), okText: 'Mevcut', failText: 'Eksik' },
     { label: 'Google Tanıtım Yazısı', ok: Boolean(auditResult.has_meta_description), okText: 'Mevcut', failText: 'Eksik' },
-    { label: 'Ziyaretçi Sayacı', ok: Boolean(auditResult.has_analytics), okText: 'Kurulu', failText: 'Kurulu Değil' },
-    { label: 'Instagram / Facebook Reklam Takibi', ok: Boolean(auditResult.has_pixel), okText: 'Kurulu', failText: 'Kurulu Değil' },
-    { label: 'WhatsApp / Sosyal Medya Önizlemesi', ok: Boolean(auditResult.has_og_tags), okText: 'Mevcut', failText: 'Eksik' },
+    { label: 'Ziyaretçi Sayacı', ok: Boolean(auditResult.has_analytics), okText: 'Kurulu', failText: 'Yok' },
+    { label: 'Reklam Takip Kodu', ok: Boolean(auditResult.has_pixel), okText: 'Kurulu', failText: 'Yok' },
+    { label: 'Sosyal Medya Önizlemesi', ok: Boolean(auditResult.has_og_tags), okText: 'Mevcut', failText: 'Eksik' },
   ];
+
+  const missingCount = checkItems.filter(c => !c.ok).length;
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      <div className="bg-[var(--theme-surface)] w-full max-w-4xl rounded-2xl border border-[var(--theme-border)] shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
-        {/* Üst Başlık Çubuğu */}
-        <div className="bg-[var(--theme-canvas)] px-6 py-5 border-b border-[var(--theme-border)] flex flex-wrap justify-between items-center gap-4 shrink-0">
+      <div className="bg-[var(--theme-surface)] w-full max-w-5xl rounded-2xl border border-[var(--theme-border)] shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
+        {/* Sade Üst Başlık */}
+        <div className="bg-[var(--theme-canvas)] px-7 py-5 border-b border-[var(--theme-border)] flex justify-between items-center gap-4 shrink-0">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full bg-[var(--theme-primary)] text-[var(--theme-contrast)] border border-[var(--theme-border)]">
-              İşletme İnceleme Raporu
+            <span className="text-xs font-semibold text-[var(--theme-primary)]">
+              {merchant.category_label || merchant.category || 'İşletme İnceleme Raporu'}
             </span>
-            <h2 className="text-2xl font-bold text-[var(--theme-contrast)] mt-2">
+            <h2 className="text-2xl font-bold text-[var(--theme-contrast)] mt-0.5">
               {auditResult.merchantName}
             </h2>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={handleOpenDemoSite}
-              title="İşletmeye Özel Canlı Örnek Web Sitesi Taslağı Oluştur"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <LayoutTemplate size={16} />
-              <span>Örnek Site Oluştur</span>
-            </button>
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isExportingPdf}
-              title="İnceleme Raporunu PDF Olarak İndir"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <FileDown size={16} />
-              <span>{isExportingPdf ? 'PDF Hazırlanıyor...' : 'PDF Rapor İndir'}</span>
-            </button>
+          <div className="flex items-center gap-2">
             {onReAudit && (
               <button
                 onClick={onReAudit}
                 title="İncelemeyi Yenile"
-                className="p-2.5 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] border border-[var(--theme-border)] transition-colors cursor-pointer"
+                className="p-2.5 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] transition-colors cursor-pointer"
               >
                 <RefreshCw size={17} />
               </button>
@@ -505,19 +491,19 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           </div>
         </div>
 
-        {/* Göz Yormayan 2 Adımlı Sekme Çubuğu */}
-        <div className="bg-[var(--theme-canvas)] px-6 py-3 border-b border-[var(--theme-border)] flex items-center gap-3 shrink-0">
+        {/* 3 Ana Sekme Çubuğu */}
+        <div className="bg-[var(--theme-canvas)] px-7 py-3 border-b border-[var(--theme-border)] flex flex-wrap items-center gap-3 shrink-0">
           <button
             type="button"
             onClick={() => setMainTab('overview')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               mainTab === 'overview'
-                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] shadow-md shadow-none'
-                : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] border border-[var(--theme-border)]'
+                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:bg-[var(--theme-muted)] border border-[var(--theme-border)]'
             }`}
           >
             <FileText size={16} />
-            <span>1. İnceleme Özeti ve İletişim</span>
+            <span>1. Özet ve İletişim</span>
           </button>
 
           <button
@@ -525,12 +511,12 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             onClick={() => setMainTab('proposal')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               mainTab === 'proposal'
-                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] shadow-md shadow-none'
-                : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] border border-[var(--theme-border)]'
+                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:bg-[var(--theme-muted)] border border-[var(--theme-border)]'
             }`}
           >
             <Wand2 size={16} />
-            <span>2. Hazır Teklif Mesajı Oluştur</span>
+            <span>2. Hazır Teklif Mesajı</span>
           </button>
 
           <button
@@ -538,496 +524,514 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             onClick={handleOpenDemoSite}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               mainTab === 'demo_site'
-                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] shadow-md shadow-none'
-                : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] border border-[var(--theme-border)]'
+                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:bg-[var(--theme-muted)] border border-[var(--theme-border)]'
             }`}
           >
             <LayoutTemplate size={16} />
-            <span>3. Canlı Örnek Site Önizlemesi</span>
+            <span>3. Örnek Site Taslağı</span>
           </button>
         </div>
 
-        {/* Kaydırılabilir Ana İçerik */}
-        <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1">
+        {/* Kaydırılabilir Ferah İçerik Alanı */}
+        <div className="p-7 sm:p-9 space-y-7 overflow-y-auto flex-1">
           {pitchStatusMessage && (
-            <div className="px-4 py-3 rounded-xl bg-[var(--theme-primary)] border border-[var(--theme-border)] text-[var(--theme-contrast)] text-sm flex items-center gap-2">
-              <CheckCircle2 size={16} className="shrink-0" />
+            <div className="px-4 py-3 rounded-xl bg-[var(--theme-canvas)] border border-[var(--theme-primary)] text-[var(--theme-contrast)] text-sm flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-[var(--theme-primary)] shrink-0" />
               <span>{pitchStatusMessage}</span>
             </div>
           )}
 
           {mainTab === 'overview' ? (
             <div className="space-y-6">
-              {/* Bölüm 1: Puan ve Genel Değerlendirme (Ferah Kart) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[var(--theme-canvas)] p-6 rounded-2xl border border-[var(--theme-border)] flex flex-col items-center justify-center text-center">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--theme-contrast)]/80">
-                    İhtiyaç ve Fırsat Puanı
-                  </p>
-                  <p className="text-5xl font-black text-[var(--theme-contrast)] my-3">
-                    {auditResult.score}
-                    <span className="text-xl text-[var(--theme-contrast)]/70 font-semibold">/100</span>
-                  </p>
-                  <span className="text-xs px-3 py-1 rounded-full bg-[var(--theme-primary)] text-[var(--theme-contrast)] border border-[var(--theme-border)]">
-                    {auditResult.score >= 80
-                      ? 'Çok Yüksek Satış Fırsatı'
-                      : auditResult.score >= 55
-                        ? 'Orta-Yüksek İyileştirme İhtiyacı'
-                        : 'Tanıtım ve Reklam Fırsatı'}
+              {/* 1. Ana Özet Kartı (Geniş ve Sade) */}
+              <div className="bg-[var(--theme-canvas)] p-7 rounded-2xl border border-[var(--theme-border)] flex flex-col md:flex-row items-center gap-8">
+                {/* Sol: Fırsat Puanı */}
+                <div className="flex flex-col items-center justify-center text-center md:border-r border-[var(--theme-border)] md:pr-8 shrink-0 min-w-[180px]">
+                  <span className="text-xs font-semibold text-[var(--theme-contrast)]/70">
+                    Fırsat Puanı
                   </span>
-
-                  {effectiveWebsite ? (
-                    <a
-                      href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-flex items-center gap-1.5 text-xs text-blue-400 hover:underline truncate max-w-full"
-                    >
-                      <Globe size={14} />
-                      <span className="truncate">{effectiveWebsite.replace(/^https?:\/\//, '')}</span>
-                      <ExternalLink size={12} />
-                    </a>
-                  ) : (
-                    <span className="mt-4 text-xs text-amber-400 font-medium">
-                      Aktif Web Sitesi Bulunmuyor
-                    </span>
-                  )}
+                  <div className="text-5xl font-black text-[var(--theme-primary)] my-2">
+                    {auditResult.score}
+                    <span className="text-xl text-[var(--theme-contrast)]/50 font-semibold">/100</span>
+                  </div>
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[var(--theme-surface)] text-[var(--theme-contrast)] border border-[var(--theme-border)]">
+                    {auditResult.score >= 80
+                      ? 'Yüksek Satış Fırsatı'
+                      : auditResult.score >= 55
+                        ? 'Orta Seviye İhtiyaç'
+                        : 'Tanıtım Fırsatı'}
+                  </span>
                 </div>
 
-                <div className="md:col-span-2 bg-[var(--theme-canvas)] p-6 rounded-2xl border border-[var(--theme-border)] flex flex-col justify-between space-y-4">
+                {/* Sağ: Kısa Durum Özeti */}
+                <div className="flex-1 space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-[var(--theme-contrast)] mb-2">
-                      Genel Değerlendirme
+                    <h3 className="text-base font-bold text-[var(--theme-contrast)] mb-1.5">
+                      İşletme Durum Özeti
                     </h3>
-                    <p className="text-[var(--theme-contrast)] text-sm leading-relaxed">
+                    <p className="text-[var(--theme-contrast)]/90 text-sm leading-relaxed">
                       {auditResult.ai_summary}
                     </p>
                   </div>
 
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--theme-contrast)]/80 mb-2.5">
-                      Yapılabilecek İyileştirmeler
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {(auditResult.opportunities || []).map((opp: string, i: number) => (
-                        <span
-                          key={i}
-                          className="bg-[var(--theme-primary)] text-[var(--theme-contrast)] border border-[var(--theme-border)] px-3.5 py-1.5 rounded-xl text-xs font-medium"
-                        >
-                          + {opp}
-                        </span>
-                      ))}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--theme-border)]">
+                    <div className="text-xs text-[var(--theme-contrast)]/75">
+                      Önerilen Hizmet:{' '}
+                      <strong className="text-[var(--theme-contrast)]">
+                        {recommendedPackage || 'Telefon Uyumlu Web Sitesi ve Harita Paketi'}
+                      </strong>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setMainTab('proposal')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <span>Hazır Teklif Mesajına Geç</span>
+                      <ArrowRight size={14} />
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Bölüm 2: Bulunan İletişim ve Sosyal Medya Bilgileri (Tekilleştirilmiş & Ferah) */}
-              <div className="bg-[var(--theme-canvas)] p-6 rounded-2xl border border-[var(--theme-border)] space-y-4">
-                <h3 className="text-sm font-bold text-[var(--theme-contrast)]">
-                  Bulunan İletişim ve Sosyal Medya Bilgileri
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Telefon Numaraları */}
-                  <div className="bg-[var(--theme-canvas)] p-4 rounded-xl border border-[var(--theme-border)] space-y-3">
-                    <p className="text-xs font-semibold text-[var(--theme-contrast)]/80 flex items-center gap-2">
-                      <Phone size={14} className="text-[var(--theme-contrast)]" />
-                      <span>Telefon ({allPhones.length})</span>
-                    </p>
-                    {allPhones.length === 0 ? (
-                      <p className="text-sm text-[var(--theme-contrast)]/70">Telefon numarası bulunamadı.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {allPhones.map((ph, i) => (
-                          <div
-                            key={`ph-${i}`}
-                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] text-sm"
-                          >
-                            <a href={`tel:${ph}`} className="text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] font-medium truncate">
-                              {ph}
-                            </a>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <a
-                                href={`https://wa.me/${formatWhatsAppNumber(ph)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 rounded bg-[var(--theme-primary)] text-[var(--theme-contrast)] hover:bg-[var(--theme-primary)] text-xs font-semibold"
-                              >
-                                WhatsApp
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyValue(ph)}
-                                title="Numarayı Kopyala"
-                                className="p-1 text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] cursor-pointer"
-                              >
-                                {copiedItem === ph ? <Check size={14} className="text-[var(--theme-contrast)]" /> : <Copy size={14} />}
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+              {/* 2. İletişim Bilgileri (3 Geniş ve Net Kutu) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Telefon & WhatsApp */}
+                <div className="bg-[var(--theme-canvas)] p-5 rounded-2xl border border-[var(--theme-border)] flex flex-col justify-between space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[var(--theme-contrast)]/70 flex items-center gap-2">
+                      <Phone size={15} className="text-[var(--theme-primary)]" />
+                      Telefon
+                    </span>
+                    {effectivePhone && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyValue(effectivePhone)}
+                        className="text-xs text-[var(--theme-primary)] hover:underline cursor-pointer inline-flex items-center gap-1"
+                      >
+                        {copiedItem === effectivePhone ? <Check size={13} /> : <Copy size={13} />}
+                        <span>{copiedItem === effectivePhone ? 'Kopyalandı' : 'Kopyala'}</span>
+                      </button>
                     )}
                   </div>
 
-                  {/* E-posta Adresleri */}
-                  <div className="bg-[var(--theme-canvas)] p-4 rounded-xl border border-[var(--theme-border)] space-y-3">
-                    <p className="text-xs font-semibold text-[var(--theme-contrast)]/80 flex items-center gap-2">
-                      <Mail size={14} className="text-blue-400" />
-                      <span>E-posta ({allEmails.length})</span>
+                  {effectivePhone ? (
+                    <div className="space-y-2.5">
+                      <a
+                        href={`tel:${effectivePhone}`}
+                        className="block text-base font-bold text-[var(--theme-contrast)] hover:text-[var(--theme-primary)]"
+                      >
+                        {effectivePhone}
+                      </a>
+                      <a
+                        href={`https://wa.me/${formatWhatsAppNumber(effectivePhone)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-primary)] text-[var(--theme-on-primary)] text-xs font-semibold"
+                      >
+                        <MessageSquare size={13} />
+                        <span>WhatsApp Aç</span>
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--theme-contrast)]/55 py-2">
+                      Telefon numarası kayıtlı değil
                     </p>
-                    {allEmails.length === 0 ? (
-                      <p className="text-sm text-[var(--theme-contrast)]/70">E-posta adresi bulunamadı.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {allEmails.map((em, i) => (
-                          <div
-                            key={`em-${i}`}
-                            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--theme-surface)] border border-[var(--theme-border)] text-sm"
-                          >
-                            <a
-                              href={`mailto:${em}`}
-                              className="text-[var(--theme-contrast)] hover:text-blue-400 truncate font-medium"
-                              title={em}
-                            >
-                              {em}
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => handleCopyValue(em)}
-                              title="E-postayı Kopyala"
-                              className="p-1 text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] cursor-pointer shrink-0"
-                            >
-                              {copiedItem === em ? <Check size={14} className="text-[var(--theme-contrast)]" /> : <Copy size={14} />}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  )}
+                </div>
 
-                  {/* Sosyal Medya Hesapları */}
-                  <div className="bg-[var(--theme-canvas)] p-4 rounded-xl border border-[var(--theme-border)] space-y-3">
-                    <p className="text-xs font-semibold text-[var(--theme-contrast)]/80 flex items-center gap-2">
-                      <Globe size={14} className="text-purple-400" />
-                      <span>Sosyal Medya ({Object.keys(socialLinks).length})</span>
-                    </p>
-                    {Object.keys(socialLinks).length === 0 ? (
-                      <p className="text-sm text-[var(--theme-contrast)]/70">Sosyal medya hesabı bulunamadı.</p>
+                {/* İnternet Sitesi */}
+                <div className="bg-[var(--theme-canvas)] p-5 rounded-2xl border border-[var(--theme-border)] flex flex-col justify-between space-y-3">
+                  <span className="text-xs font-semibold text-[var(--theme-contrast)]/70 flex items-center gap-2">
+                    <Globe size={15} className="text-[var(--theme-primary)]" />
+                    İnternet Sitesi
+                  </span>
+
+                  {effectiveWebsite ? (
+                    <div className="space-y-2">
+                      <a
+                        href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] break-all"
+                      >
+                        <span className="line-clamp-1">{effectiveWebsite.replace(/^https?:\/\//, '')}</span>
+                        <ExternalLink size={14} className="shrink-0" />
+                      </a>
+                      <p className="text-xs text-[var(--theme-contrast)]/70">
+                        {auditResult.cms_platform ? `Altyapı: ${auditResult.cms_platform}` : 'Site aktif durumda'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm font-bold text-amber-500">
+                        Web Sitesi Bulunmuyor
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleOpenDemoSite}
+                        className="text-xs font-semibold text-[var(--theme-primary)] hover:underline cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <LayoutTemplate size={13} />
+                        <span>Örnek Site Taslağı Oluştur</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* E-posta ve Sosyal Medya */}
+                <div className="bg-[var(--theme-canvas)] p-5 rounded-2xl border border-[var(--theme-border)] flex flex-col justify-between space-y-3">
+                  <span className="text-xs font-semibold text-[var(--theme-contrast)]/70 flex items-center gap-2">
+                    <Mail size={15} className="text-[var(--theme-primary)]" />
+                    E-posta & Sosyal Medya
+                  </span>
+
+                  <div className="space-y-2">
+                    {effectiveEmail ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <a
+                          href={`mailto:${effectiveEmail}`}
+                          className="text-sm font-semibold text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] truncate"
+                        >
+                          {effectiveEmail}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyValue(effectiveEmail)}
+                          className="text-xs text-[var(--theme-contrast)]/70 hover:text-[var(--theme-contrast)] cursor-pointer shrink-0"
+                        >
+                          {copiedItem === effectiveEmail ? <Check size={13} /> : <Copy size={13} />}
+                        </button>
+                      </div>
                     ) : (
-                      <div className="flex flex-wrap gap-2">
+                      <p className="text-xs text-[var(--theme-contrast)]/55">E-posta bulunamadı</p>
+                    )}
+
+                    {Object.keys(socialLinks).length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
                         {Object.entries(socialLinks).map(([platform, link]) => (
                           <a
                             key={platform}
                             href={link}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] border border-[var(--theme-border)] text-sm text-blue-400 hover:underline capitalize"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] border border-[var(--theme-border)] text-xs font-medium text-[var(--theme-contrast)] capitalize"
                           >
-                            <ExternalLink size={13} />
                             <span>{platform}</span>
+                            <ExternalLink size={11} />
                           </a>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-xs text-[var(--theme-contrast)]/55">Sosyal medya kaydı yok</p>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Bölüm 3: Web Sitesi Durum Kontrolü (Ferah Satırlar) */}
-              <div className="bg-[var(--theme-canvas)] p-6 rounded-2xl border border-[var(--theme-border)] space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-[var(--theme-contrast)]">
-                    Web Sitesi Durum Kontrolü
-                  </h3>
-                  {auditResult.cms_platform && (
-                    <span className="text-xs text-[var(--theme-contrast)]/80">
-                      Altyapı: <strong className="text-[var(--theme-contrast)]">{auditResult.cms_platform}</strong>
+              {/* 3. Ayrı Butonlarla Açılan Detay Bölümleri */}
+              <div className="space-y-3 pt-1">
+                {/* Buton A: Yapılabilecek İyileştirmeler */}
+                <div className="bg-[var(--theme-canvas)] rounded-2xl border border-[var(--theme-border)] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowOpportunities(!showOpportunities)}
+                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[var(--theme-muted)]/30 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <span className="text-sm font-bold text-[var(--theme-contrast)]">
+                        Tespit Edilen Eksikler ve İyileştirme Fırsatları
+                      </span>
+                      <span className="ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--theme-surface)] text-[var(--theme-contrast)] border border-[var(--theme-border)]">
+                        {(auditResult.opportunities || []).length} Madde
+                      </span>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-primary)]">
+                      <span>{showOpportunities ? 'Gizle' : 'Detayları Göster'}</span>
+                      {showOpportunities ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </span>
+                  </button>
+
+                  {showOpportunities && (
+                    <div className="px-6 pb-6 pt-2 border-t border-[var(--theme-border)]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                        {(auditResult.opportunities || []).map((opp: string, i: number) => (
+                          <div
+                            key={i}
+                            className="p-3.5 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] text-xs font-medium text-[var(--theme-contrast)] flex items-start gap-2.5"
+                          >
+                            <CheckCircle2 size={15} className="text-[var(--theme-primary)] shrink-0 mt-0.5" />
+                            <span>{opp}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {checkItems.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`px-4 py-3 rounded-xl border text-sm flex items-center justify-between ${
-                        item.ok
-                          ? 'bg-[var(--theme-primary)] border-[var(--theme-border)] text-[var(--theme-contrast)]'
-                          : 'bg-rose-500/10 border-rose-500/25 text-rose-300'
-                      }`}
-                    >
-                      <span className="font-medium text-[var(--theme-contrast)]">{item.label}</span>
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-xs">
-                        {item.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
-                        {item.ok ? item.okText : item.failText}
+                {/* Buton B: Teknik Web Sitesi Durum Kontrolü (8 Kriter) */}
+                <div className="bg-[var(--theme-canvas)] rounded-2xl border border-[var(--theme-border)] overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowTechnicalChecklist(!showTechnicalChecklist)}
+                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[var(--theme-muted)]/30 transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <span className="text-sm font-bold text-[var(--theme-contrast)]">
+                        Teknik Web Sitesi Kontrol Tablosu
+                      </span>
+                      <span className="ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--theme-surface)] text-[var(--theme-contrast)] border border-[var(--theme-border)]">
+                        {missingCount} Eksik / {checkItems.length} Kriter
                       </span>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-primary)]">
+                      <span>{showTechnicalChecklist ? 'Gizle' : 'Teknik Detayları Aç'}</span>
+                      {showTechnicalChecklist ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </span>
+                  </button>
 
-              {/* Teklif Sekmesine Geçiş Çağrısı */}
-              <div className="bg-[var(--theme-primary)] border border-[var(--theme-border)] rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h4 className="text-sm font-bold text-[var(--theme-contrast)]">
-                    Bu İşletmeye Gönderilecek Teklif Mesajınız Hazır
-                  </h4>
-                  <p className="text-xs text-[var(--theme-contrast)] mt-0.5">
-                    WhatsApp, E-posta, Instagram veya Telefon görüşmesi için hazırlanan teklif metnini inceleyip hemen gönderebilirsiniz.
-                  </p>
+                  {showTechnicalChecklist && (
+                    <div className="px-6 pb-6 pt-3 border-t border-[var(--theme-border)]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {checkItems.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="px-4 py-3 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] text-xs flex items-center justify-between"
+                          >
+                            <span className="font-medium text-[var(--theme-contrast)]">{item.label}</span>
+                            <span
+                              className={`inline-flex items-center gap-1.5 font-bold ${
+                                item.ok ? 'text-[var(--theme-primary)]' : 'text-rose-500'
+                              }`}
+                            >
+                              {item.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                              {item.ok ? item.okText : item.failText}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMainTab('proposal')}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-none"
-                >
-                  <span>Teklif Mesajını Aç</span>
-                  <ArrowRight size={16} />
-                </button>
               </div>
             </div>
           ) : mainTab === 'proposal' ? (
-            /* SEKME 2: HAZIR TEKLİF MESAJI OLUŞTURUCU (Ferah Görünüm) */
-            <div className="bg-[var(--theme-canvas)] rounded-2xl border border-[var(--theme-border)] overflow-hidden">
-              <div className="px-6 py-4 bg-[var(--theme-canvas)] border-b border-[var(--theme-border)] flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-bold text-[var(--theme-contrast)]">
-                    Hazır Teklif Mesajı Oluşturucu
-                  </h3>
-                  <p className="text-xs text-[var(--theme-contrast)]/80 mt-0.5">
-                    Konuşma dilini ve önermek istediğiniz hizmeti seçerek mesajı istediğiniz gibi yenileyebilirsiniz.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvancedParams(!showAdvancedParams)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
-                      showAdvancedParams
-                        ? 'bg-[var(--theme-primary)] border-[var(--theme-border)] text-[var(--theme-contrast)]'
-                        : 'bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] border-[var(--theme-border)] text-[var(--theme-contrast)]'
-                    }`}
-                  >
-                    <SlidersHorizontal size={14} />
-                    <span>Gönderen ve Kampanya Bilgisi</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKeyModal(!showApiKeyModal)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-xs font-medium text-[var(--theme-contrast)] border border-[var(--theme-border)] transition-colors cursor-pointer"
-                  >
-                    <KeyRound size={14} className="text-[var(--theme-contrast)]" />
-                    <span>{aiStatus.configured ? 'Gemini Ayarlı' : 'Gemini Anahtarı'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {showApiKeyModal && (
-                <form
-                  onSubmit={handleSaveApiKey}
-                  className="p-5 bg-[var(--theme-canvas)] border-b border-[var(--theme-border)] space-y-3 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-[var(--theme-contrast)]">
-                      Google Gemini Anahtarı (İsteğe Bağlı)
-                    </span>
-                    <span className="text-[var(--theme-contrast)]/80">
-                      Anahtar girmezseniz sistem kendi akıllı şablonlarıyla teklif üretmeye devam eder
-                    </span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2.5">
-                    <input
-                      type="password"
-                      value={apiKeyInput}
-                      onChange={e => setApiKeyInput(e.target.value)}
-                      placeholder="Google Gemini anahtarınızı buraya yapıştırın (AIzaSy...)"
-                      className="flex-1 bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSavingApiKey}
-                      className="px-5 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold cursor-pointer disabled:opacity-50"
-                    >
-                      {isSavingApiKey ? 'Kaydediliyor...' : 'Kaydet'}
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Ayar Seçicileri */}
-              <div className="p-6 bg-[var(--theme-canvas)] border-b border-[var(--theme-border)] space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                  <div className="md:col-span-4">
-                    <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
-                      Konuşma Dili
-                    </label>
-                    <select
-                      value={tone}
-                      onChange={e => setTone(e.target.value)}
-                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)] cursor-pointer"
-                    >
-                      <option value="kurumsal">Kurumsal ve Saygılı</option>
-                      <option value="samimi">Samimi ve Esnaf Dostu</option>
-                      <option value="ikna_edici">İkna Edici ve Kazanç Odaklı</option>
-                      <option value="kisa_net">Kısa ve Doğrudan Sonuç Odaklı</option>
-                    </select>
-                  </div>
-
-                  <div className="md:col-span-5">
-                    <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
-                      Önerilecek Hizmet
-                    </label>
-                    <select
-                      value={focusService}
-                      onChange={e => setFocusService(e.target.value)}
-                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)] cursor-pointer"
-                    >
-                      <option value="auto">Otomatik (Eksiklere Göre En Uygunu)</option>
-                      <option value="web_tasarim">Telefon Uyumlu Yeni Web Sitesi</option>
-                      <option value="yerel_seo">Google Harita ve Üst Sıra Çalışması</option>
-                      <option value="performans_reklam">Instagram ve Google Reklam Yönetimi</option>
-                      <option value="e_ticaret">Online Sipariş / Randevu ve WhatsApp Hattı</option>
-                    </select>
-                  </div>
-
-                  <div className="md:col-span-3">
-                    <button
-                      type="button"
-                      onClick={handleGenerateAiPitch}
-                      disabled={isGeneratingPitch}
-                      className="w-full flex items-center justify-center gap-2 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer disabled:opacity-50 shadow-md shadow-none"
-                    >
-                      <Sparkles size={16} className={isGeneratingPitch ? 'animate-spin' : ''} />
-                      <span>{isGeneratingPitch ? 'Hazırlanıyor...' : 'Teklifi Yenile'}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {showAdvancedParams && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[var(--theme-border)]">
-                    <div>
-                      <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Adınız Soyadınız</label>
-                      <input
-                        type="text"
-                        value={senderName}
-                        onChange={e => setSenderName(e.target.value)}
-                        placeholder="Örn: Ahmet Yılmaz"
-                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Firma / Ekip Adınız</label>
-                      <input
-                        type="text"
-                        value={agencyName}
-                        onChange={e => setAgencyName(e.target.value)}
-                        placeholder="Örn: Nova Web Tasarım"
-                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Özel İndirim veya Hediye Notu</label>
-                      <input
-                        type="text"
-                        value={specialOffer}
-                        onChange={e => setSpecialOffer(e.target.value)}
-                        placeholder="Örn: Bu haftaya özel Google Harita kaydı ücretsiz"
-                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Eklemek İstediğiniz Özel Not</label>
-                      <input
-                        type="text"
-                        value={customInstruction}
-                        onChange={e => setCustomInstruction(e.target.value)}
-                        placeholder="Örn: Paket servis siparişlerine vurgu yap"
-                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {recommendedPackage && (
-                  <div className="bg-[var(--theme-canvas)] p-4 rounded-xl border border-[var(--theme-border)] flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-[var(--theme-contrast)]/80">
-                      Önerilen Çözüm Paketi:
-                    </span>
-                    <span className="text-sm font-bold text-[var(--theme-contrast)]">
-                      {recommendedPackage}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* 4 Kanal Seçici */}
-              <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-3.5 bg-[var(--theme-canvas)] border-b border-[var(--theme-border)]">
+            /* SEKME 2: HAZIR TEKLİF MESAJI (Sade ve Geniş) */
+            <div className="space-y-5">
+              {/* Kanal Seçimi ve Özelleştirme Butonu */}
+              <div className="bg-[var(--theme-canvas)] p-5 rounded-2xl border border-[var(--theme-border)] flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setPitchTab('whatsapp')}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'whatsapp'
                         ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                        : 'text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] bg-[var(--theme-surface)]'
+                        : 'text-[var(--theme-contrast)] bg-[var(--theme-surface)] border border-[var(--theme-border)]'
                     }`}
                   >
                     <MessageSquare size={14} />
-                    <span>WhatsApp Mesajı</span>
+                    <span>WhatsApp</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPitchTab('email')}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'email'
                         ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                        : 'text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] bg-[var(--theme-surface)]'
+                        : 'text-[var(--theme-contrast)] bg-[var(--theme-surface)] border border-[var(--theme-border)]'
                     }`}
                   >
                     <Mail size={14} />
-                    <span>E-posta Yazısı</span>
+                    <span>E-posta</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPitchTab('instagram')}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'instagram'
                         ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                        : 'text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] bg-[var(--theme-surface)]'
+                        : 'text-[var(--theme-contrast)] bg-[var(--theme-surface)] border border-[var(--theme-border)]'
                     }`}
                   >
                     <Send size={14} />
-                    <span>Instagram Mesajı</span>
+                    <span>Instagram</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setPitchTab('cold_call')}
-                    className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                       pitchTab === 'cold_call'
                         ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                        : 'text-[var(--theme-contrast)] hover:text-[var(--theme-contrast)] bg-[var(--theme-surface)]'
+                        : 'text-[var(--theme-contrast)] bg-[var(--theme-surface)] border border-[var(--theme-border)]'
                     }`}
                   >
                     <PhoneCall size={14} />
-                    <span>Telefon Konuşma Metni</span>
+                    <span>Telefon Konuşması</span>
                   </button>
                 </div>
 
+                {/* Detaylı Teklif Ayarlarını Açan Ayrı Buton */}
                 <button
                   type="button"
-                  onClick={handleCopyPitch}
+                  onClick={() => setShowPitchCustomizer(!showPitchCustomizer)}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-xs font-semibold text-[var(--theme-contrast)] border border-[var(--theme-border)] transition-colors cursor-pointer"
                 >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copied ? 'Kopyalandı' : 'Yazıyı Kopyala'}</span>
+                  <SlidersHorizontal size={14} className="text-[var(--theme-primary)]" />
+                  <span>{showPitchCustomizer ? 'Mesaj Ayarlarını Gizle' : 'Mesaj Ayarlarını Özelleştir'}</span>
                 </button>
               </div>
 
-              {/* Mesaj Alanı ve Gönderim Butonları */}
-              <div className="p-6 space-y-4">
+              {/* Ayrı Butonla Açılan Teklif Özelleştirme Paneli */}
+              {showPitchCustomizer && (
+                <div className="bg-[var(--theme-canvas)] p-6 rounded-2xl border border-[var(--theme-border)] space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--theme-border)]">
+                    <span className="text-sm font-bold text-[var(--theme-contrast)]">
+                      Teklif Metni Özelleştirme
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvancedParams(!showAdvancedParams)}
+                        className="px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-xs font-medium text-[var(--theme-contrast)] border border-[var(--theme-border)] cursor-pointer"
+                      >
+                        {showAdvancedParams ? 'Gönderen Bilgilerini Gizle' : 'Gönderen ve Kampanya Ekle'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKeyModal(!showApiKeyModal)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-xs font-medium text-[var(--theme-contrast)] border border-[var(--theme-border)] cursor-pointer"
+                      >
+                        <KeyRound size={13} />
+                        <span>{aiStatus.configured ? 'Gemini Ayarlı' : 'Gemini Anahtarı'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {showApiKeyModal && (
+                    <form
+                      onSubmit={handleSaveApiKey}
+                      className="p-4 bg-[var(--theme-surface)] rounded-xl border border-[var(--theme-border)] space-y-2.5 text-xs"
+                    >
+                      <div className="font-semibold text-[var(--theme-contrast)]">
+                        Google Gemini API Anahtarı (İsteğe Bağlı)
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2.5">
+                        <input
+                          type="password"
+                          value={apiKeyInput}
+                          onChange={e => setApiKeyInput(e.target.value)}
+                          placeholder="Google Gemini anahtarınızı yapıştırın (AIzaSy...)"
+                          className="flex-1 bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={isSavingApiKey}
+                          className="px-5 py-2 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold cursor-pointer disabled:opacity-50"
+                        >
+                          {isSavingApiKey ? 'Kaydediliyor...' : 'Kaydet'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                    <div className="md:col-span-4">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
+                        Konuşma Dili
+                      </label>
+                      <select
+                        value={tone}
+                        onChange={e => setTone(e.target.value)}
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none cursor-pointer"
+                      >
+                        <option value="kurumsal">Kurumsal ve Saygılı</option>
+                        <option value="samimi">Samimi ve Esnaf Dostu</option>
+                        <option value="ikna_edici">İkna Edici ve Kazanç Odaklı</option>
+                        <option value="kisa_net">Kısa ve Doğrudan Sonuç Odaklı</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-5">
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
+                        Önerilecek Hizmet
+                      </label>
+                      <select
+                        value={focusService}
+                        onChange={e => setFocusService(e.target.value)}
+                        className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none cursor-pointer"
+                      >
+                        <option value="auto">Otomatik (Eksiklere Göre En Uygunu)</option>
+                        <option value="web_tasarim">Telefon Uyumlu Yeni Web Sitesi</option>
+                        <option value="yerel_seo">Google Harita ve Üst Sıra Çalışması</option>
+                        <option value="performans_reklam">Instagram ve Google Reklam Yönetimi</option>
+                        <option value="e_ticaret">Online Sipariş / Randevu ve WhatsApp Hattı</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <button
+                        type="button"
+                        onClick={handleGenerateAiPitch}
+                        disabled={isGeneratingPitch}
+                        className="w-full flex items-center justify-center gap-2 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <Sparkles size={16} className={isGeneratingPitch ? 'animate-spin' : ''} />
+                        <span>{isGeneratingPitch ? 'Üretiliyor...' : 'Metni Yenile'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {showAdvancedParams && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[var(--theme-border)]">
+                      <div>
+                        <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Adınız Soyadınız</label>
+                        <input
+                          type="text"
+                          value={senderName}
+                          onChange={e => setSenderName(e.target.value)}
+                          placeholder="Örn: Ahmet Yılmaz"
+                          className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Firma / Ekip Adınız</label>
+                        <input
+                          type="text"
+                          value={agencyName}
+                          onChange={e => setAgencyName(e.target.value)}
+                          placeholder="Örn: Nova Web Tasarım"
+                          className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Özel İndirim veya Hediye Notu</label>
+                        <input
+                          type="text"
+                          value={specialOffer}
+                          onChange={e => setSpecialOffer(e.target.value)}
+                          placeholder="Örn: Bu haftaya özel Google Harita kaydı ücretsiz"
+                          className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">Eklemek İstediğiniz Özel Not</label>
+                        <input
+                          type="text"
+                          value={customInstruction}
+                          onChange={e => setCustomInstruction(e.target.value)}
+                          placeholder="Örn: Paket servis siparişlerine vurgu yap"
+                          className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mesaj Kutusu ve Doğrudan Gönderim Aksiyonları */}
+              <div className="bg-[var(--theme-canvas)] p-6 rounded-2xl border border-[var(--theme-border)] space-y-4">
                 {pitchTab === 'email' && (
                   <div>
                     <label className="block text-xs font-semibold text-[var(--theme-contrast)]/80 mb-1.5">
@@ -1037,36 +1041,40 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       type="text"
                       value={emailSubject}
                       onChange={e => setEmailSubject(e.target.value)}
-                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-border)]"
+                      className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-4 py-2.5 text-sm text-[var(--theme-contrast)] focus:outline-none"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-[var(--theme-contrast)]/80 mb-1.5">
-                    {pitchTab === 'whatsapp'
-                      ? 'WhatsApp Mesajı (Göndermeden önce üzerinde değişiklik yapabilirsiniz)'
-                      : pitchTab === 'email'
-                        ? 'E-posta Metni (Göndermeden önce üzerinde değişiklik yapabilirsiniz)'
-                        : pitchTab === 'instagram'
-                          ? 'Instagram Mesajı'
-                          : 'Telefonla Aradığınızda Söyleyebileceğiniz Konuşma Metni'}
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-semibold text-[var(--theme-contrast)]/80">
+                      Gönderilecek Metin (Üzerinde değişiklik yapabilirsiniz)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleCopyPitch}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-xs font-semibold text-[var(--theme-contrast)] border border-[var(--theme-border)] transition-colors cursor-pointer"
+                    >
+                      {copied ? <Check size={13} /> : <Copy size={13} />}
+                      <span>{copied ? 'Kopyalandı' : 'Metni Kopyala'}</span>
+                    </button>
+                  </div>
                   <textarea
-                    rows={pitchTab === 'email' || pitchTab === 'cold_call' ? 9 : 6}
+                    rows={8}
                     value={getActivePitchText()}
                     onChange={e => setActivePitchText(e.target.value)}
-                    className="w-full text-sm text-[var(--theme-contrast)] font-sans leading-relaxed bg-[var(--theme-canvas)] p-4 rounded-xl border border-[var(--theme-border)] focus:outline-none focus:border-[var(--theme-border)] resize-y"
+                    className="w-full text-sm text-[var(--theme-contrast)] font-sans leading-relaxed bg-[var(--theme-surface)] p-4 rounded-xl border border-[var(--theme-border)] focus:outline-none resize-y"
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex flex-wrap items-center gap-3 pt-1">
                   {waUrl && (
                     <a
                       href={waUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-sm font-semibold transition-colors"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-sm font-semibold transition-colors"
                     >
                       <MessageSquare size={16} />
                       <span>WhatsApp ile Gönder ({effectivePhone})</span>
@@ -1075,10 +1083,10 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   {mailUrl && (
                     <a
                       href={mailUrl}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-[var(--theme-on-primary)] text-sm font-semibold transition-colors"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
                     >
                       <Mail size={16} />
-                      <span>E-posta Gönder ({effectiveEmail})</span>
+                      <span>E-posta Gönder</span>
                     </a>
                   )}
                   {socialLinks.instagram && (
@@ -1086,19 +1094,10 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       href={socialLinks.instagram}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-[var(--theme-on-primary)] text-sm font-semibold transition-colors"
-                    >
-                      <Send size={16} />
-                      <span>Instagram Sayfasını Aç</span>
-                    </a>
-                  )}
-                  {effectivePhone && (
-                    <a
-                      href={`tel:${effectivePhone}`}
                       className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-sm font-semibold transition-colors"
                     >
-                      <PhoneCall size={16} className="text-[var(--theme-contrast)]" />
-                      <span>Telefonla Ara ({effectivePhone})</span>
+                      <Send size={15} />
+                      <span>Instagram Profilini Aç</span>
                     </a>
                   )}
                 </div>
@@ -1107,13 +1106,13 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           ) : (
             /* SEKME 3: CANLI ÖRNEK SİTE ÖNİZLEMESİ */
             <div className="space-y-4">
-              <div className="bg-[var(--theme-canvas)] p-4 rounded-2xl border border-[var(--theme-border)] flex flex-wrap items-center justify-between gap-3">
+              <div className="bg-[var(--theme-canvas)] p-5 rounded-2xl border border-[var(--theme-border)] flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-[var(--theme-contrast)]">
                     {auditResult.merchantName} — Örnek Web Sitesi Taslağı
                   </h3>
-                  <p className="text-xs text-[var(--theme-contrast)]/80 mt-0.5">
-                    İşletmenin adı, sektörü, telefonu, adresi ve çalışma saatleri kullanılarak otomatik oluşturuldu.
+                  <p className="text-xs text-[var(--theme-contrast)]/75 mt-0.5">
+                    İşletmenin kendi bilgileriyle otomatik oluşturulan canlı web sitesi önizlemesi.
                   </p>
                 </div>
 
@@ -1125,7 +1124,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                         demoPreviewDevice === 'desktop'
                           ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                          : 'text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)]'
+                          : 'text-[var(--theme-contrast)]/80'
                       }`}
                     >
                       <Monitor size={14} />
@@ -1137,7 +1136,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                         demoPreviewDevice === 'mobile'
                           ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                          : 'text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)]'
+                          : 'text-[var(--theme-contrast)]/80'
                       }`}
                     >
                       <Smartphone size={14} />
@@ -1152,7 +1151,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold cursor-pointer disabled:opacity-50"
                   >
                     <ExternalLink size={14} />
-                    <span>Yeni Sekmede Tam Ekran Aç</span>
+                    <span>Tam Ekran Aç</span>
                   </button>
 
                   <button
@@ -1162,7 +1161,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-xs font-semibold cursor-pointer disabled:opacity-50"
                   >
                     <FileDown size={14} />
-                    <span>Taslak Siteyi İndir (.html)</span>
+                    <span>Taslağı İndir (.html)</span>
                   </button>
                 </div>
               </div>
@@ -1176,10 +1175,10 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   <iframe
                     title={`${auditResult.merchantName} Örnek Web Sitesi`}
                     srcDoc={demoSiteHtml}
-                    className={`bg-white rounded-xl border border-[var(--theme-border)] shadow-2xl transition-all duration-200 ${
+                    className={`bg-white rounded-xl border border-[var(--theme-border)] transition-all duration-200 ${
                       demoPreviewDevice === 'mobile'
-                        ? 'w-[390px] h-[640px]'
-                        : 'w-full h-[560px]'
+                        ? 'w-[390px] h-[620px]'
+                        : 'w-full h-[540px]'
                     }`}
                   />
                 </div>
@@ -1192,8 +1191,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           )}
         </div>
 
-        {/* Alt Aksiyon Çubuğu */}
-        <div className="px-6 py-4 border-t border-[var(--theme-border)] bg-[var(--theme-canvas)] flex flex-wrap items-center justify-between gap-3 shrink-0">
+        {/* Sade Alt Aksiyon Çubuğu */}
+        <div className="px-7 py-4 border-t border-[var(--theme-border)] bg-[var(--theme-canvas)] flex flex-wrap items-center justify-between gap-3 shrink-0">
           <button
             onClick={onClose}
             className="bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer"
@@ -1202,30 +1201,17 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           </button>
           <div className="flex items-center gap-3">
             <button
-              type="button"
-              onClick={handleOpenDemoSite}
-              title="İşletmeye Özel Canlı Örnek Web Sitesi Taslağı Oluştur"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <LayoutTemplate size={16} />
-              <span>Örnek Site Oluştur</span>
-            </button>
-            <button
               onClick={handleDownloadPdf}
               disabled={isExportingPdf}
               className="px-4 py-2.5 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-sm font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <FileDown size={16} />
-              <span>{isExportingPdf ? 'PDF İndiriliyor...' : 'PDF Rapor İndir'}</span>
+              <span>{isExportingPdf ? 'PDF Hazırlanıyor...' : 'PDF Rapor İndir'}</span>
             </button>
             <button
               onClick={onSaveLead}
               disabled={isSavingLead || saveLeadSuccess}
-              className={`px-5 py-2.5 rounded-xl transition-colors text-sm font-semibold flex items-center gap-2 cursor-pointer ${
-                saveLeadSuccess
-                  ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                  : 'bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] disabled:opacity-50 shadow-lg shadow-none'
-              }`}
+              className="px-5 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] transition-colors text-sm font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <BookmarkPlus size={17} />
               <span>
@@ -1233,7 +1219,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
                   ? 'Kaydediliyor...'
                   : saveLeadSuccess
                     ? 'Listeye Kaydedildi'
-                    : 'Listeme Kaydet'}
+                    : 'Müşteri Listeme Kaydet'}
               </span>
             </button>
           </div>

@@ -474,7 +474,13 @@ function App() {
         {activeTab === 'settings' ? (
           <SettingsView currentTheme={currentTheme} onApplyTheme={handleSelectTheme} />
         ) : activeTab === 'profile' ? (
-          <UserProfileView token={token} />
+          <UserProfileView
+            token={token}
+            onAccountDeleted={() => {
+              handleLogout();
+              setSessionError('Hesabınız ve ilişkili tüm verileriniz kalıcı olarak silindi.');
+            }}
+          />
         ) : activeTab === 'crm' ? (
           <SavedLeadsCRM
             token={token}

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, updateUserProfile } from '../api';
+import { getUserProfile, updateUserProfile, deleteUserAccount } from '../api';
 import type { UserProfile } from '../types';
-import { User, KeyRound, Database, CheckCircle2, AlertCircle, Eye, EyeOff, Check, Circle } from 'lucide-react';
+import { User, KeyRound, Database, CheckCircle2, AlertCircle, Eye, EyeOff, Check, Circle, Trash2 } from 'lucide-react';
 
 interface UserProfileViewProps {
   token: string;
   onProfileUpdated?: (fullName: string) => void;
+  onAccountDeleted?: () => void;
 }
 
-export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfileUpdated }) => {
+export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfileUpdated, onAccountDeleted }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +29,31 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Account delete states
+  const [showDeleteSection, setShowDeleteSection] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError(null);
+    if (!deletePassword.trim()) {
+      setDeleteError('Hesabınızı silmek için mevcut şifrenizi girmelisiniz.');
+      return;
+    }
+    setIsDeletingAccount(true);
+    try {
+      await deleteUserAccount(deletePassword, token);
+      if (onAccountDeleted) {
+        onAccountDeleted();
+      }
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Hesap silinemedi.');
+      setIsDeletingAccount(false);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -340,6 +366,81 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
             </form>
           </div>
         </div>
+      </div>
+
+      {/* Hesap Silme Bölümü (Ayrı Butonla Açılır) */}
+      <div className="bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-bold text-base text-[var(--theme-contrast)] flex items-center gap-2">
+              <Trash2 size={18} className="text-rose-500" />
+              <span>Hesabı Kalıcı Olarak Sil</span>
+            </h3>
+            <p className="text-xs text-[var(--theme-contrast)]/70 mt-1">
+              Hesabınızı sildiğinizde kayıtlı tüm müşterileriniz, görüşme notlarınız ve hatırlatıcılarınız kalıcı olarak kaldırılır.
+            </p>
+          </div>
+
+          {!showDeleteSection && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowDeleteSection(true);
+                setDeleteError(null);
+                setDeletePassword('');
+              }}
+              className="px-4 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border border-rose-500/30 text-xs font-semibold transition-colors cursor-pointer shrink-0"
+            >
+              Hesabımı Silmek İstiyorum
+            </button>
+          )}
+        </div>
+
+        {showDeleteSection && (
+          <form onSubmit={handleDeleteAccount} className="mt-5 pt-5 border-t border-[var(--theme-border)] space-y-4">
+            {deleteError && (
+              <div className="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-500 text-xs font-medium flex items-center gap-2">
+                <AlertCircle size={15} className="shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="max-w-md">
+              <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
+                İşlemi onaylamak için mevcut şifrenizi girin
+              </label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={e => setDeletePassword(e.target.value)}
+                placeholder="Mevcut şifreniz"
+                required
+                className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={isDeletingAccount || !deletePassword.trim()}
+                className="px-5 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isDeletingAccount ? 'Hesap Siliniyor...' : 'Onayla ve Hesabımı Kalıcı Olarak Sil'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteSection(false);
+                  setDeletePassword('');
+                  setDeleteError(null);
+                }}
+                className="px-4 py-2.5 rounded-lg bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Vazgeç
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
