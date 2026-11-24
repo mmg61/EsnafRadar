@@ -25,7 +25,8 @@ import {
   AlertCircle,
   MapPin,
   Bell,
-  Settings
+  Settings,
+  LogOut
 } from 'lucide-react';
 
 function App() {
@@ -415,10 +416,10 @@ function App() {
             </div>
 
             {/* Navigasyon Sekmeleri */}
-            <nav className="flex items-center gap-1.5 bg-[var(--theme-canvas)] p-1 rounded-xl border border-[var(--theme-border)]">
+            <nav className="flex items-center h-[42px] gap-1.5 bg-[var(--theme-canvas)] p-1 rounded-xl border border-[var(--theme-border)]">
               <button
                 onClick={() => setActiveTab('radar')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+                className={`flex items-center h-8 gap-2 px-3 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                   activeTab === 'radar'
                     ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
                     : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
@@ -429,7 +430,7 @@ function App() {
               </button>
               <button
                 onClick={() => setActiveTab('crm')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+                className={`flex items-center h-8 gap-2 px-3 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                   activeTab === 'crm'
                     ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
                     : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
@@ -454,7 +455,7 @@ function App() {
               </button>
               <button
                 onClick={() => setActiveTab('profile')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+                className={`flex items-center h-8 gap-2 px-3 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                   activeTab === 'profile'
                     ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
                     : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
@@ -465,7 +466,7 @@ function App() {
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
+                className={`flex items-center h-8 gap-2 px-3 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
                   activeTab === 'settings'
                     ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
                     : 'text-[var(--theme-contrast)] hover:bg-[var(--theme-surface)]'
@@ -480,8 +481,9 @@ function App() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--theme-border)] bg-[var(--theme-canvas)] text-[var(--theme-contrast)] hover:bg-rose-500/15 hover:text-rose-500 transition-colors cursor-pointer font-semibold text-xs"
+              className="flex items-center h-[42px] gap-2 px-4 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-canvas)] text-[var(--theme-contrast)] hover:bg-rose-500/15 hover:text-rose-500 hover:border-rose-500/30 transition-colors cursor-pointer font-semibold text-sm"
             >
+              <LogOut size={16} />
               <span>Çıkış Yap</span>
             </button>
           </div>
