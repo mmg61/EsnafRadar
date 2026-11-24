@@ -178,13 +178,9 @@ export const LeadCard: React.FC<LeadCardProps> = ({
           <button
             type="button"
             onClick={() => onOpenModal(lead, 'reminder')}
-            className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-colors cursor-pointer ${
-              hasReminder && !lead.reminder_completed
-                ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border-amber-500/40'
-                : 'bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border-[var(--theme-border)]'
-            }`}
+            className="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-[11px] font-medium transition-colors cursor-pointer"
           >
-            <Bell size={12} className="text-amber-400 shrink-0" />
+            <Bell size={12} className="text-[var(--theme-primary)] shrink-0" />
             <span>Hatırlatıcı</span>
           </button>
 

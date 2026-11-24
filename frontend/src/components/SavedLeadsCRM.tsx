@@ -437,10 +437,10 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border cursor-pointer ${
               statusFilter === 'all'
-                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)]'
+                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
+                : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
             }`}
           >
             Hepsi ({leads.length})
@@ -448,12 +448,10 @@ export const SavedLeadsCRM: React.FC<SavedLeadsCRMProps> = ({
 
           <button
             onClick={() => setStatusFilter('reminders')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border inline-flex items-center gap-1.5 cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border inline-flex items-center gap-1.5 cursor-pointer ${
               statusFilter === 'reminders'
-                ? 'bg-amber-500 text-slate-950 border-amber-500'
-                : activeReminders.length > 0
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/40 hover:bg-amber-500/20'
-                  : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
+                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
+                : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
             }`}
           >
             <Bell size={13} />
