@@ -92,7 +92,7 @@ function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }
 
 const MapRadar: React.FC<MapRadarProps> = ({ center, radius, merchants, isScanning, onAudit, onCenterChange }) => {
   return (
-    <div className="relative w-full h-[380px] lg:h-auto lg:self-stretch lg:min-h-[420px] rounded-xl overflow-hidden border border-[var(--theme-border)] bg-[var(--theme-surface)]">
+    <div className="relative w-full h-[380px] lg:h-auto lg:self-stretch lg:min-h-[480px] rounded-xl overflow-hidden border border-[var(--theme-border)] bg-[var(--theme-surface)]">
       <MapContainer
         center={center}
         zoom={14}

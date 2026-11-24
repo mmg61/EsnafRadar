@@ -27,7 +27,9 @@ import {
   Bell,
   Settings,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 function App() {
@@ -122,6 +124,25 @@ function App() {
   const [filterOnlyNoWebsite, setFilterOnlyNoWebsite] = useState<boolean>(false);
   const [filterOnlyWithPhone, setFilterOnlyWithPhone] = useState<boolean>(false);
   const [hideCorporateChains, setHideCorporateChains] = useState<boolean>(false);
+  const [showAllMerchants, setShowAllMerchants] = useState<boolean>(false);
+  const [gridCols, setGridCols] = useState<number>(() => {
+    if (typeof window === 'undefined') return 5;
+    if (window.innerWidth >= 1024) return 5;
+    if (window.innerWidth >= 768) return 3;
+    if (window.innerWidth >= 640) return 2;
+    return 1;
+  });
+
+  React.useEffect(() => {
+    const updateCols = () => {
+      if (window.innerWidth >= 1024) setGridCols(5);
+      else if (window.innerWidth >= 768) setGridCols(3);
+      else if (window.innerWidth >= 640) setGridCols(2);
+      else setGridCols(1);
+    };
+    window.addEventListener('resize', updateCols);
+    return () => window.removeEventListener('resize', updateCols);
+  }, []);
 
   // Toast bildirim state
   const [appToast, setAppToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -320,6 +341,7 @@ function App() {
 
     setIsScanning(true);
     setMerchants([]);
+    setShowAllMerchants(false);
     try {
       const results = await scanMerchants(targetLat, targetLon, targetRadius, token, targetCategory);
       setMerchants(results);
@@ -343,6 +365,11 @@ function App() {
     const matchesChain = !hideCorporateChains || !m.is_corporate_chain;
     return matchesSearch && matchesNoWeb && matchesPhone && matchesChain;
   });
+
+  const maxCollapsedMerchants = gridCols * 3;
+  const visibleMerchants = showAllMerchants
+    ? filteredMerchants
+    : filteredMerchants.slice(0, maxCollapsedMerchants);
 
   if (!token) {
     return (
@@ -511,10 +538,10 @@ function App() {
           />
         ) : (
           <div className="space-y-6">
-            {/* Üst Satır: Radar Kontrolü ve Harita (Eşit Yükseklik) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-              <div className="lg:col-span-4 flex">
-                <div className="w-full lg:min-h-[420px] bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)] flex flex-col justify-between gap-5">
+            {/* Üst Satır: Radar Kontrolü (Dar) ve Harita (Geniş) - Eşit Yükseklik */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
+              <div className="lg:col-span-1 flex">
+                <div className="w-full lg:min-h-[480px] bg-[var(--theme-surface)] p-5 rounded-xl border border-[var(--theme-border)] flex flex-col justify-between gap-5">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-bold text-[var(--theme-contrast)] flex items-center gap-2">
@@ -612,7 +639,7 @@ function App() {
                 </div>
               </div>
 
-              <div className="lg:col-span-8 flex">
+              <div className="lg:col-span-3 flex">
                 <MapRadar
                   center={center}
                   radius={radius}
@@ -702,34 +729,60 @@ function App() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {filteredMerchants.map(m => (
-                    <button
-                      key={m.osm_id}
-                      type="button"
-                      onClick={() => handleAudit(m)}
-                      className="group text-left p-3.5 bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)] hover:bg-[var(--theme-muted)]/60 transition-colors cursor-pointer flex flex-col justify-between gap-3"
-                    >
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-sm truncate text-[var(--theme-contrast)]">
-                          {m.name}
-                        </h3>
-                        <p className="text-xs text-[var(--theme-contrast)]/65 mt-0.5 truncate">
-                          {m.category_label || m.category}
-                        </p>
-                      </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {visibleMerchants.map(m => (
+                      <button
+                        key={m.osm_id}
+                        type="button"
+                        onClick={() => handleAudit(m)}
+                        className="group text-left p-3.5 bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)] hover:bg-[var(--theme-muted)]/60 transition-colors cursor-pointer flex flex-col justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-sm truncate text-[var(--theme-contrast)]">
+                            {m.name}
+                          </h3>
+                          <p className="text-xs text-[var(--theme-contrast)]/65 mt-0.5 truncate">
+                            {m.category_label || m.category}
+                          </p>
+                        </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-[var(--theme-contrast)]/70">
-                        <span>
-                          {m.website ? 'Web Var' : 'Web Yok'} • {m.phone ? 'Tel Var' : 'Tel Yok'}
-                        </span>
-                        <ChevronRight
-                          size={14}
-                          className="text-[var(--theme-contrast)]/50 group-hover:text-[var(--theme-contrast)] group-hover:translate-x-0.5 transition-all shrink-0"
-                        />
-                      </div>
-                    </button>
-                  ))}
+                        <div className="flex items-center justify-between text-[11px] text-[var(--theme-contrast)]/70">
+                          <span>
+                            {m.website ? 'Web Var' : 'Web Yok'} • {m.phone ? 'Tel Var' : 'Tel Yok'}
+                          </span>
+                          <ChevronRight
+                            size={14}
+                            className="text-[var(--theme-contrast)]/50 group-hover:text-[var(--theme-contrast)] group-hover:translate-x-0.5 transition-all shrink-0"
+                          />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {filteredMerchants.length > maxCollapsedMerchants && (
+                    <div className="flex justify-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllMerchants(v => !v)}
+                        className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)]/85 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        {showAllMerchants ? (
+                          <>
+                            <span>Daha Az Göster</span>
+                            <ChevronUp size={15} />
+                          </>
+                        ) : (
+                          <>
+                            <span>
+                              Tümünü Göster (+{filteredMerchants.length - maxCollapsedMerchants} işletme daha)
+                            </span>
+                            <ChevronDown size={15} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
