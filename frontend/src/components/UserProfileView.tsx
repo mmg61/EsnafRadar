@@ -376,7 +376,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="font-bold text-base text-[var(--theme-contrast)] flex items-center gap-2">
-              <Trash2 size={18} className="text-rose-500" />
+              <Trash2 size={18} className="text-[var(--theme-contrast)]/80" />
               <span>Hesabı Kalıcı Olarak Sil</span>
             </h3>
             <p className="text-xs text-[var(--theme-contrast)]/70 mt-1">
@@ -392,9 +392,10 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
                 setDeleteError(null);
                 setDeletePassword('');
               }}
-              className="px-4 py-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-500 border border-rose-500/30 text-xs font-semibold transition-colors cursor-pointer shrink-0"
+              className="group flex items-center h-[42px] gap-2 px-4 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:bg-[var(--theme-muted)] hover:text-[var(--theme-contrast)] transition-colors cursor-pointer font-semibold text-sm shrink-0"
             >
-              Hesabımı Silmek İstiyorum
+              <Trash2 size={16} className="text-[var(--theme-contrast)]/80 group-hover:text-[var(--theme-contrast)] transition-colors" />
+              <span>Hesabımı Silmek İstiyorum</span>
             </button>
           )}
         </div>
@@ -402,7 +403,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
         {showDeleteSection && (
           <form onSubmit={handleDeleteAccount} className="mt-5 pt-5 border-t border-[var(--theme-border)] space-y-4">
             {deleteError && (
-              <div className="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-500 text-xs font-medium flex items-center gap-2">
+              <div className="p-3 rounded-lg bg-rose-100 border border-rose-700 text-rose-900 text-xs font-medium flex items-center gap-2">
                 <AlertCircle size={15} className="shrink-0" />
                 <span>{deleteError}</span>
               </div>
@@ -418,7 +419,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
                 onChange={e => setDeletePassword(e.target.value)}
                 placeholder="Mevcut şifreniz"
                 required
-                className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-rose-500"
+                className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
               />
             </div>
 
@@ -426,9 +427,10 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
               <button
                 type="submit"
                 disabled={isDeletingAccount || !deletePassword.trim()}
-                className="px-5 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                className="flex items-center h-[42px] gap-2 px-5 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:bg-[var(--theme-muted)] hover:text-[var(--theme-contrast)] text-sm font-semibold transition-colors cursor-pointer disabled:opacity-50"
               >
-                {isDeletingAccount ? 'Hesap Siliniyor...' : 'Onayla ve Hesabımı Kalıcı Olarak Sil'}
+                <Trash2 size={16} />
+                <span>{isDeletingAccount ? 'Hesap Siliniyor...' : 'Onayla ve Hesabımı Kalıcı Olarak Sil'}</span>
               </button>
               <button
                 type="button"
@@ -437,7 +439,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
                   setDeletePassword('');
                   setDeleteError(null);
                 }}
-                className="px-4 py-2.5 rounded-lg bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors cursor-pointer"
+                className="flex items-center h-[42px] px-4 rounded-xl bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)] text-sm font-semibold transition-colors cursor-pointer"
               >
                 Vazgeç
               </button>
