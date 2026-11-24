@@ -124,7 +124,7 @@ function App() {
   const [filterOnlyNoWebsite, setFilterOnlyNoWebsite] = useState<boolean>(false);
   const [filterOnlyWithPhone, setFilterOnlyWithPhone] = useState<boolean>(false);
   const [hideCorporateChains, setHideCorporateChains] = useState<boolean>(false);
-  const [showAllMerchants, setShowAllMerchants] = useState<boolean>(false);
+  const [visibleRows, setVisibleRows] = useState<number>(3);
   const [gridCols, setGridCols] = useState<number>(() => {
     if (typeof window === 'undefined') return 5;
     if (window.innerWidth >= 1024) return 5;
@@ -341,7 +341,7 @@ function App() {
 
     setIsScanning(true);
     setMerchants([]);
-    setShowAllMerchants(false);
+    setVisibleRows(3);
     try {
       const results = await scanMerchants(targetLat, targetLon, targetRadius, token, targetCategory);
       setMerchants(results);
@@ -366,10 +366,10 @@ function App() {
     return matchesSearch && matchesNoWeb && matchesPhone && matchesChain;
   });
 
-  const maxCollapsedMerchants = gridCols * 3;
-  const visibleMerchants = showAllMerchants
-    ? filteredMerchants
-    : filteredMerchants.slice(0, maxCollapsedMerchants);
+  const stepMerchantsCount = gridCols * 3;
+  const visibleLimit = gridCols * visibleRows;
+  const visibleMerchants = filteredMerchants.slice(0, visibleLimit);
+  const remainingMerchantsCount = Math.max(0, filteredMerchants.length - visibleLimit);
 
   if (!token) {
     return (
@@ -672,14 +672,20 @@ function App() {
                         type="text"
                         placeholder="Sonuçlarda ara..."
                         value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
+                        onChange={e => {
+                          setSearchQuery(e.target.value);
+                          setVisibleRows(3);
+                        }}
                         className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                       />
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => setFilterOnlyNoWebsite(v => !v)}
+                      onClick={() => {
+                        setFilterOnlyNoWebsite(v => !v);
+                        setVisibleRows(3);
+                      }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                         filterOnlyNoWebsite
                           ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
@@ -691,7 +697,10 @@ function App() {
 
                     <button
                       type="button"
-                      onClick={() => setFilterOnlyWithPhone(v => !v)}
+                      onClick={() => {
+                        setFilterOnlyWithPhone(v => !v);
+                        setVisibleRows(3);
+                      }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                         filterOnlyWithPhone
                           ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
@@ -703,7 +712,10 @@ function App() {
 
                     <button
                       type="button"
-                      onClick={() => setHideCorporateChains(v => !v)}
+                      onClick={() => {
+                        setHideCorporateChains(v => !v);
+                        setVisibleRows(3);
+                      }}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                         hideCorporateChains
                           ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
@@ -760,27 +772,31 @@ function App() {
                     ))}
                   </div>
 
-                  {filteredMerchants.length > maxCollapsedMerchants && (
-                    <div className="flex justify-center pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setShowAllMerchants(v => !v)}
-                        className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)]/85 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors cursor-pointer"
-                      >
-                        {showAllMerchants ? (
-                          <>
-                            <span>Daha Az Göster</span>
-                            <ChevronUp size={15} />
-                          </>
-                        ) : (
-                          <>
-                            <span>
-                              Tümünü Göster (+{filteredMerchants.length - maxCollapsedMerchants} işletme daha)
-                            </span>
-                            <ChevronDown size={15} />
-                          </>
-                        )}
-                      </button>
+                  {filteredMerchants.length > stepMerchantsCount && (
+                    <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                      {remainingMerchantsCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setVisibleRows(r => r + 3)}
+                          className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)]/85 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          <span>
+                            Daha Fazla Göster ({remainingMerchantsCount} kaldı)
+                          </span>
+                          <ChevronDown size={15} />
+                        </button>
+                      )}
+
+                      {visibleRows > 3 && (
+                        <button
+                          type="button"
+                          onClick={() => setVisibleRows(3)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)]/70 hover:text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-medium transition-colors cursor-pointer"
+                        >
+                          <span>Daha Az Göster</span>
+                          <ChevronUp size={15} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
