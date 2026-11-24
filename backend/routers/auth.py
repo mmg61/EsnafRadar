@@ -4,19 +4,19 @@ import secrets
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timedelta
+from datetime import timedelta
 import httpx
-from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 import models, schemas, database, auth
+from crypto_utils import utcnow
 
 router = APIRouter()
 
 CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY", "").strip()
-ALLOW_DEV_TURNSTILE = os.getenv("ALLOW_DEV_TURNSTILE", "true").strip().lower() in ("1", "true", "yes")
+ALLOW_DEV_TURNSTILE = os.getenv("ALLOW_DEV_TURNSTILE", "false").strip().lower() in ("1", "true", "yes")
 
 
 def validate_password_strength(password: str) -> tuple[bool, str]:
@@ -33,7 +33,7 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
 
 def _check_rate_limit(db: Session, bucket: str, identifier: str, window_seconds: int, max_requests: int) -> bool:
     """Veritabanı destekli kalıcı istek sınırlama (Rate Limit) kontrolü."""
-    cutoff = datetime.utcnow() - timedelta(seconds=window_seconds)
+    cutoff = utcnow() - timedelta(seconds=window_seconds)
     db.query(models.RateLimitLog).filter(
         models.RateLimitLog.bucket == bucket,
         models.RateLimitLog.created_at < cutoff
@@ -47,7 +47,7 @@ def _check_rate_limit(db: Session, bucket: str, identifier: str, window_seconds:
 
 
 def _record_rate_limit_hit(db: Session, bucket: str, identifier: str) -> None:
-    db.add(models.RateLimitLog(bucket=bucket, identifier=identifier, created_at=datetime.utcnow()))
+    db.add(models.RateLimitLog(bucket=bucket, identifier=identifier, created_at=utcnow()))
     db.commit()
 
 
@@ -146,7 +146,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
     email_clean = form_data.username.strip().lower()
     user = db.query(models.User).filter(models.User.email == email_clean).first()
-    now = datetime.utcnow()
+    now = utcnow()
 
     if user and user.locked_until and user.locked_until > now:
         remaining_seconds = int((user.locked_until - now).total_seconds())
@@ -322,7 +322,7 @@ async def forgot_password(
     if not is_turnstile_valid:
         raise HTTPException(status_code=400, detail="Güvenlik doğrulaması (Turnstile) başarısız oldu. Lütfen tekrar deneyin.")
 
-    now = datetime.utcnow()
+    now = utcnow()
     client_ip = request.client.host if request.client else "unknown"
 
     if not _check_rate_limit(db, "reset_ip", client_ip, window_seconds=600, max_requests=10):
@@ -387,7 +387,7 @@ def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(data
     if not user or not user.reset_code:
         raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş doğrulama kodu.")
 
-    now = datetime.utcnow()
+    now = utcnow()
 
     if user.reset_code_expires and user.reset_code_expires < now:
         user.reset_code = None

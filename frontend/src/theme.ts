@@ -109,7 +109,9 @@ export function getSavedTheme(): ThemeId {
     if (raw && VALID_THEME_IDS.has(raw)) {
       return raw as ThemeId;
     }
-  } catch (_) {}
+  } catch {
+    // localStorage erisimi kapaliysa varsayilana don
+  }
   return 'midnight';
 }
 
@@ -147,7 +149,9 @@ export function updateFaviconForTheme(theme: ThemeId): void {
 export function applyAndSaveTheme(theme: ThemeId): void {
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch (_) {}
+  } catch {
+    // localStorage erisimi kapaliysa varsayilana don
+  }
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('data-theme', theme);
     updateFaviconForTheme(theme);

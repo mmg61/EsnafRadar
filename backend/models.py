@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, DateTime, JSON, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from database import Base
+from crypto_utils import utcnow
 
 
 class User(Base):
@@ -20,7 +20,7 @@ class User(Base):
     reset_code_expires = Column(DateTime, nullable=True)
     last_reset_request_at = Column(DateTime, nullable=True)
     reset_code_attempts = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     saved_leads = relationship("SavedLead", back_populates="user", cascade="all, delete-orphan")
 
@@ -41,7 +41,7 @@ class Merchant(Base):
     address = Column(String)
 
     audit_data = Column(JSON)
-    last_scanned_at = Column(DateTime, default=datetime.utcnow)
+    last_scanned_at = Column(DateTime, default=utcnow)
 
     saved_leads = relationship("SavedLead", back_populates="merchant")
 
@@ -55,7 +55,7 @@ class SavedLead(Base):
 
     status = Column(String, default="new")
     opportunity_score = Column(Integer, default=0)
-    saved_at = Column(DateTime, default=datetime.utcnow)
+    saved_at = Column(DateTime, default=utcnow)
 
     reminder_at = Column(DateTime, nullable=True)
     reminder_note = Column(String, nullable=True)
@@ -74,8 +74,8 @@ class LeadNote(Base):
     saved_lead_id = Column(Integer, ForeignKey("saved_leads.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     saved_lead = relationship("SavedLead", back_populates="notes")
 
@@ -88,7 +88,7 @@ class OutreachLog(Base):
     channel = Column(String)
     message_content = Column(Text)
     is_ai_generated = Column(Boolean, default=False)
-    sent_at = Column(DateTime, default=datetime.utcnow)
+    sent_at = Column(DateTime, default=utcnow)
 
     saved_lead = relationship("SavedLead", back_populates="outreach_logs")
 
@@ -99,5 +99,4 @@ class RateLimitLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     bucket = Column(String, index=True, nullable=False)
     identifier = Column(String, index=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-
+    created_at = Column(DateTime, default=utcnow, index=True)

@@ -55,22 +55,25 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
     }
   };
 
-  const fetchProfile = async () => {
-    try {
-      setLoading(true);
-      const data = await getUserProfile(token);
-      setProfile(data);
-      setFirstName(data.first_name || '');
-      setLastName(data.last_name || '');
-    } catch (err: unknown) {
-      setInfoError(err instanceof Error ? err.message : 'Profil yüklenemedi.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchProfile();
+    let cancelled = false;
+    getUserProfile(token)
+      .then(data => {
+        if (cancelled) return;
+        setProfile(data);
+        setFirstName(data.first_name || '');
+        setLastName(data.last_name || '');
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setInfoError(err instanceof Error ? err.message : 'Profil yüklenemedi.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const rules = [

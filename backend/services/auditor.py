@@ -1,4 +1,5 @@
 import asyncio
+import httpcore
 import httpx
 from bs4 import BeautifulSoup
 import ipaddress
@@ -16,6 +17,65 @@ from services.brands import resolve_known_brand_website
 
 load_dotenv()
 
+_BLOCKED_HOST_EXACT = {"localhost", "0.0.0.0", "::1"}
+_BLOCKED_HOST_SUFFIXES = (".local", ".internal", ".localhost", ".lan", ".home", ".arpa")
+
+
+def _is_disallowed_ip(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped is not None:
+        ip_obj = ip_obj.ipv4_mapped
+    return (
+        not ip_obj.is_global
+        or ip_obj.is_private
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+        or ip_obj.is_unspecified
+    )
+
+
+def _is_blocked_hostname(hostname: str) -> bool:
+    clean = (hostname or "").strip().lower().rstrip(".")
+    if not clean:
+        return True
+    if clean in _BLOCKED_HOST_EXACT or clean.endswith(_BLOCKED_HOST_SUFFIXES):
+        return True
+    return False
+
+
+def _resolve_verified_public_ip(hostname: str, port: int) -> str:
+    """
+    Alan adını çözümler, dönen TÜM IP adreslerinin genel (public) olduğunu doğrular
+    ve doğrulanmış ilk genel IP adresini döndürür. İç ağ veya geçersiz adreslerde ValueError fırlatır.
+    """
+    clean_host = (hostname or "").strip().lower().rstrip(".")
+    if _is_blocked_hostname(clean_host):
+        raise ValueError(f"Engellenen alan adı: {clean_host}")
+
+    try:
+        ip_obj = ipaddress.ip_address(clean_host)
+        if _is_disallowed_ip(ip_obj):
+            raise ValueError(f"Engellenen iç ağ IP adresi: {clean_host}")
+        return str(ip_obj)
+    except ValueError as exc:
+        if "Engellenen" in str(exc):
+            raise
+
+    addr_info = socket.getaddrinfo(clean_host, port, proto=socket.IPPROTO_TCP)
+    if not addr_info:
+        raise ValueError(f"DNS çözümlenemedi: {clean_host}")
+
+    verified_ips: list[str] = []
+    for item in addr_info:
+        ip_str = item[4][0]
+        ip_obj = ipaddress.ip_address(ip_str)
+        if _is_disallowed_ip(ip_obj):
+            raise ValueError(f"DNS iç ağ IP adresine çözümlendi (DNS Rebinding / SSRF engellendi): {ip_str}")
+        verified_ips.append(ip_str)
+
+    return verified_ips[0]
+
 
 def _is_safe_public_url(raw_url: str) -> bool:
     """
@@ -28,61 +88,103 @@ def _is_safe_public_url(raw_url: str) -> bool:
         if parsed.scheme not in ("http", "https"):
             return False
         hostname = (parsed.hostname or "").strip().lower().rstrip(".")
-        if not hostname:
-            return False
-        if hostname in ("localhost", "0.0.0.0", "::1") or hostname.endswith((".local", ".internal", ".localhost", ".lan")):
-            return False
-
-        # Doğrudan IP girilmişse kontrol et
-        try:
-            ip_obj = ipaddress.ip_address(hostname)
-            if (
-                ip_obj.is_private
-                or ip_obj.is_loopback
-                or ip_obj.is_link_local
-                or ip_obj.is_multicast
-                or ip_obj.is_reserved
-                or ip_obj.is_unspecified
-            ):
-                return False
-            return True
-        except ValueError:
-            pass
-
-        # DNS çözümlemesi ile tüm hedef IP'leri kontrol et
-        addr_info = socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == "https" else 80), proto=socket.IPPROTO_TCP)
-        if not addr_info:
-            return False
-        for item in addr_info:
-            sockaddr = item[4]
-            ip_str = sockaddr[0]
-            ip_obj = ipaddress.ip_address(ip_str)
-            if (
-                ip_obj.is_private
-                or ip_obj.is_loopback
-                or ip_obj.is_link_local
-                or ip_obj.is_multicast
-                or ip_obj.is_reserved
-                or ip_obj.is_unspecified
-            ):
-                return False
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        _resolve_verified_public_ip(hostname, port)
         return True
     except Exception:
         return False
+
+
+class _SafePublicNetworkBackend(httpcore.AsyncNetworkBackend):
+    """
+    DNS Rebinding Korumalı Ağ Katmanı:
+    Her TCP bağlantısında alan adını tek seferde çözümler, tüm IP'lerin public olduğunu doğrular
+    ve soketi doğrudan doğrulanmış IP'ye bağlar. TLS katmanı (SNI) ve HTTP Host başlığı orijinal
+    alan adını koruduğu için verify=True sertifika doğrulaması eksiksiz çalışır ve ikinci bir DNS
+    sorgusu (TOCTOU açığı) asla oluşmaz.
+    """
+
+    def __init__(self, inner: httpcore.AsyncNetworkBackend) -> None:
+        self._inner = inner
+
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options=None,
+    ):
+        clean_host = (host or "").strip().lower().rstrip(".")
+        if _is_blocked_hostname(clean_host):
+            raise httpcore.ConnectError(f"İç ağ alan adına bağlantı engellendi: {clean_host}")
+
+        try:
+            ip_obj = ipaddress.ip_address(clean_host)
+            if _is_disallowed_ip(ip_obj):
+                raise httpcore.ConnectError(f"İç ağ IP adresine bağlantı engellendi: {clean_host}")
+            verified_ip = str(ip_obj)
+        except ValueError:
+            loop = asyncio.get_running_loop()
+            try:
+                addr_info = await loop.getaddrinfo(clean_host, port, type=socket.SOCK_STREAM)
+            except Exception as exc:
+                raise httpcore.ConnectError(f"DNS çözümleme hatası: {clean_host}") from exc
+            if not addr_info:
+                raise httpcore.ConnectError(f"DNS kaydı bulunamadı: {clean_host}")
+            verified_ips: list[str] = []
+            for item in addr_info:
+                ip_str = item[4][0]
+                ip_candidate = ipaddress.ip_address(ip_str)
+                if _is_disallowed_ip(ip_candidate):
+                    raise httpcore.ConnectError(f"SSRF / DNS Rebinding engellendi: {ip_str}")
+                verified_ips.append(ip_str)
+            verified_ip = verified_ips[0]
+
+        return await self._inner.connect_tcp(
+            verified_ip,
+            port,
+            timeout=timeout,
+            local_address=local_address,
+            socket_options=socket_options,
+        )
+
+    async def connect_unix_socket(self, path: str, timeout: float | None = None, socket_options=None):
+        raise httpcore.ConnectError("Unix socket bağlantıları güvenlik nedeniyle devre dışıdır.")
+
+    async def sleep(self, seconds: float) -> None:
+        await self._inner.sleep(seconds)
+
+
+def _create_safe_async_client(headers: dict[str, str] | None = None, timeout: float = 10.0) -> httpx.AsyncClient:
+    """Zorunlu TLS doğrulaması (verify=True) ve DNS-sabitlemeli SSRF koruması ile AsyncClient üretir."""
+    transport = httpx.AsyncHTTPTransport(verify=True)
+    transport._pool._network_backend = _SafePublicNetworkBackend(transport._pool._network_backend)
+    return httpx.AsyncClient(
+        transport=transport,
+        verify=True,
+        headers=headers,
+        timeout=timeout,
+        follow_redirects=False,
+    )
 
 
 async def _safe_get_with_redirects(
     client: httpx.AsyncClient,
     url: str,
     timeout: float = 10.0,
-    max_redirects: int = 4
+    max_redirects: int = 4,
+    params: dict[str, str] | None = None,
 ) -> httpx.Response:
-    """Her yönlendirme (redirect) adımında SSRF kontrolü yaparak güvenli HTTP isteği gerçekleştirir."""
+    """Her yönlendirme (redirect) adımında şema ve SSRF kontrolü yaparak güvenli HTTP isteği gerçekleştirir."""
     current_url = url
+    current_params = params
     for _ in range(max_redirects + 1):
-        if not _is_safe_public_url(current_url):
+        parsed = urlparse(current_url.strip())
+        if parsed.scheme not in ("http", "https") or _is_blocked_hostname(parsed.hostname or ""):
             raise ValueError(f"Güvenlik nedeniyle iç ağ veya geçersiz adrese erişim engellendi: {current_url}")
-        resp = await client.get(current_url, timeout=timeout, follow_redirects=False)
+        resp = await client.get(current_url, params=current_params, timeout=timeout, follow_redirects=False)
+        current_params = None
         if resp.status_code in (301, 302, 303, 307, 308):
             loc = resp.headers.get("location")
             if not loc:
@@ -349,11 +451,17 @@ async def _discover_website_and_socials(
     slugs = _slugify_turkish_name(name)
     primary_keyword = slugs[0][:6] if slugs else ""
 
-    # 2. DuckDuckGo HTML Araması ile Canlı Web & Sosyal Medya Keşfi
+    # 2. DuckDuckGo HTML Araması ile Canlı Web & Sosyal Medya Keşfi (SSRF & Yönlendirme Korumalı)
     try:
         query = f'"{name}" {category or ""}'.strip()
-        async with httpx.AsyncClient(timeout=4.5, headers=headers, follow_redirects=True) as client:
-            resp = await client.get("https://html.duckduckgo.com/html/", params={"q": query})
+        async with _create_safe_async_client(headers=headers, timeout=4.5) as client:
+            resp = await _safe_get_with_redirects(
+                client,
+                "https://html.duckduckgo.com/html/",
+                timeout=4.5,
+                max_redirects=2,
+                params={"q": query},
+            )
             if resp.status_code == 200 and resp.text:
                 soup = BeautifulSoup(resp.text, "html.parser")
                 for a_tag in soup.select("a.result__a, a.result__url"):
@@ -364,8 +472,10 @@ async def _discover_website_and_socials(
                         continue
 
                     parsed = urlparse(raw_href)
-                    domain = parsed.netloc.lower().replace("www.", "")
-                    if not domain:
+                    if parsed.scheme not in ("http", "https"):
+                        continue
+                    domain = (parsed.hostname or "").lower().replace("www.", "")
+                    if not domain or _is_blocked_hostname(domain):
                         continue
 
                     # Sosyal medya profili yakalama
@@ -381,17 +491,19 @@ async def _discover_website_and_socials(
                         continue
 
                     # Rehber/dizin sitelerini atla
-                    if any( domain == blk or domain.endswith("." + blk) for blk in DIRECTORY_BLACKLIST ):
+                    if any(domain == blk or domain.endswith("." + blk) for blk in DIRECTORY_BLACKLIST):
                         continue
 
-                    # Domain işletme adının anahtar kelimesini içeriyorsa doğrudan resmi sitedir
+                    # Domain işletme adının anahtar kelimesini içeriyorsa ve public ise resmi sitedir
                     domain_root = domain.split(".")[0].replace("-", "")
+                    candidate_site = f"{parsed.scheme}://{parsed.netloc}"
                     if primary_keyword and len(primary_keyword) >= 3 and primary_keyword in domain_root:
-                        return f"{parsed.scheme}://{parsed.netloc}", discovered_socials
+                        if _is_safe_public_url(candidate_site):
+                            return candidate_site, discovered_socials
     except Exception:
         pass
 
-    # 3. Akıllı Alan Adı (.com.tr / .com) Doğrulaması
+    # 3. Akıllı Alan Adı (.com.tr / .com) Doğrulaması (verify=True ve DNS-Sabitlemeli SSRF Korumalı)
     if slugs:
         candidate_urls = []
         for s in slugs[:2]:
@@ -400,8 +512,8 @@ async def _discover_website_and_socials(
 
         async def _probe_url(u: str) -> Optional[str]:
             try:
-                async with httpx.AsyncClient(timeout=3.0, headers=headers, follow_redirects=True, verify=False) as c:
-                    r = await c.get(u)
+                async with _create_safe_async_client(headers=headers, timeout=3.0) as c:
+                    r = await _safe_get_with_redirects(c, u, timeout=3.0, max_redirects=3)
                     if r.status_code < 400 and len(r.text) > 400:
                         text_low = r.text[:8000].lower()
                         # Park edilmiş domain sayfalarını ele
@@ -678,7 +790,7 @@ async def run_audit(
         html_content = ""
         final_url = clean_url
 
-        async with httpx.AsyncClient(verify=True, headers=headers) as client:
+        async with _create_safe_async_client(headers=headers, timeout=10.0) as client:
             try:
                 https_url = clean_url.replace("http://", "https://", 1)
                 resp = await _safe_get_with_redirects(client, https_url, timeout=10.0)
@@ -768,9 +880,7 @@ async def run_audit(
         if subpage_urls:
             async def _fetch_subpage(sub_url: str) -> tuple[str, str]:
                 try:
-                    if not _is_safe_public_url(sub_url):
-                        return sub_url, ""
-                    async with httpx.AsyncClient(verify=True, headers=headers, timeout=5.0) as sc:
+                    async with _create_safe_async_client(headers=headers, timeout=5.0) as sc:
                         r = await _safe_get_with_redirects(sc, sub_url, timeout=5.0, max_redirects=2)
                         if r.status_code == 200 and r.text:
                             return sub_url, r.text

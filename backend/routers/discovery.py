@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import database, models, schemas, auth
+from crypto_utils import utcnow, encrypt_secret, decrypt_secret
 from services.overpass import search_merchants
 
 router = APIRouter()
@@ -34,7 +35,7 @@ async def audit_merchant(
     from services.auditor import run_audit
 
     existing_merchant = db.query(models.Merchant).filter(models.Merchant.osm_id == request.osm_id).first()
-    now = datetime.utcnow()
+    now = utcnow()
 
     if (
         not request.force_refresh
@@ -49,11 +50,12 @@ async def audit_merchant(
     ):
         return existing_merchant.audit_data
 
+    plain_user_key = decrypt_secret(current_user.gemini_api_key)
     audit_result = await run_audit(
         name=request.name,
         website=request.website,
         category=request.category,
-        user_gemini_key=current_user.gemini_api_key
+        user_gemini_key=plain_user_key
     )
 
     if existing_merchant:
@@ -75,7 +77,8 @@ def get_ai_status(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     from services.pitch_generator import get_gemini_status
-    return get_gemini_status(user_key=current_user.gemini_api_key)
+    plain_user_key = decrypt_secret(current_user.gemini_api_key)
+    return get_gemini_status(user_key=plain_user_key)
 
 
 @router.post("/ai-config", response_model=schemas.AIStatusResponse)
@@ -87,10 +90,11 @@ def update_ai_config(
     from services.pitch_generator import get_gemini_status
 
     clean_key = (request.api_key or "").strip()
-    current_user.gemini_api_key = clean_key if clean_key else None
+    current_user.gemini_api_key = encrypt_secret(clean_key) if clean_key else None
     db.commit()
     db.refresh(current_user)
-    return get_gemini_status(user_key=current_user.gemini_api_key)
+    plain_user_key = decrypt_secret(current_user.gemini_api_key)
+    return get_gemini_status(user_key=plain_user_key)
 
 
 @router.post("/generate-pitch", response_model=schemas.PitchGenerateResponse)
@@ -108,6 +112,7 @@ async def generate_custom_pitch(
         elif current_user.first_name or current_user.last_name:
             sender_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
 
+    plain_user_key = decrypt_secret(current_user.gemini_api_key)
     pitch_result = await generate_personalized_pitch(
         merchant_name=request.merchant_name,
         category=request.category,
@@ -119,7 +124,7 @@ async def generate_custom_pitch(
         custom_instruction=request.custom_instruction,
         audit_context=request.audit_context if isinstance(request.audit_context, dict) else {},
         gemini_api_key=request.gemini_api_key,
-        user_gemini_key=current_user.gemini_api_key,
+        user_gemini_key=plain_user_key,
     )
 
     if request.osm_id:

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional, List, Any, Literal
 from datetime import datetime
 
@@ -21,8 +21,7 @@ class UserResponse(BaseModel):
     access_token: Optional[str] = None
     token_type: Optional[str] = "bearer"
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class UserProfileResponse(UserResponse):
     saved_leads_count: int = 0
@@ -166,8 +165,7 @@ class MerchantResponse(MerchantBase):
     audit_data: Optional[Any] = None
     last_scanned_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # --- Lead CRM Schemas ---
 LeadStatusLiteral = Literal["new", "contacted", "interested", "converted", "rejected"]
@@ -208,8 +206,7 @@ class LeadNoteResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class OutreachLogCreate(BaseModel):
     channel: OutreachChannelLiteral
@@ -224,8 +221,7 @@ class OutreachLogResponse(BaseModel):
     is_ai_generated: bool
     sent_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SavedLeadResponse(BaseModel):
     id: int
@@ -241,8 +237,7 @@ class SavedLeadResponse(BaseModel):
     notes: List[LeadNoteResponse] = []
     outreach_logs: List[OutreachLogResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PdfExportRequest(BaseModel):

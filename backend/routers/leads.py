@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List, Any
-from datetime import datetime
 
 import database, models, schemas, auth
+from crypto_utils import utcnow
 
 router = APIRouter()
 
@@ -70,7 +70,7 @@ def save_lead(
             website=request.website,
             address=request.address,
             audit_data=request.audit_data,
-            last_scanned_at=datetime.utcnow()
+            last_scanned_at=utcnow()
         )
         db.add(merchant)
         db.commit()
@@ -86,7 +86,7 @@ def save_lead(
             merchant.website = request.website
         if request.address and not merchant.address:
             merchant.address = request.address
-        merchant.last_scanned_at = datetime.utcnow()
+        merchant.last_scanned_at = utcnow()
         db.commit()
         db.refresh(merchant)
 
@@ -107,7 +107,7 @@ def save_lead(
         merchant_id=merchant.id,
         status="new",
         opportunity_score=request.opportunity_score or 0,
-        saved_at=datetime.utcnow()
+        saved_at=utcnow()
     )
     db.add(new_lead)
     db.commit()
@@ -195,7 +195,7 @@ def export_saved_leads_csv(
         ])
 
     output.seek(0)
-    filename = f"esnafradar_musteriler_{datetime.utcnow().strftime('%Y%m%d')}.csv"
+    filename = f"esnafradar_musteriler_{utcnow().strftime('%Y%m%d')}.csv"
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv; charset=utf-8",
@@ -298,7 +298,7 @@ def update_lead_note(
         raise HTTPException(status_code=400, detail="Not içeriği boş olamaz.")
 
     note.content = content_clean
-    note.updated_at = datetime.utcnow()
+    note.updated_at = utcnow()
     db.commit()
     db.refresh(note)
     return note
@@ -343,7 +343,7 @@ def log_lead_outreach(
         channel=request.channel,
         message_content=request.message_content.strip(),
         is_ai_generated=bool(request.is_ai_generated),
-        sent_at=datetime.utcnow()
+        sent_at=utcnow()
     )
     db.add(log_entry)
 

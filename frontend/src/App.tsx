@@ -67,7 +67,9 @@ function App() {
             setTimeout(connectKeepAlive, 1500);
           }
         };
-      } catch (_) {}
+        } catch {
+    // Baglanti hatasinda sessizce devam et
+  }
     };
 
     connectKeepAlive();
@@ -84,7 +86,9 @@ function App() {
       if (ws) {
         try {
           ws.close();
-        } catch (_) {}
+          } catch {
+    // Baglanti hatasinda sessizce devam et
+  }
       }
       if (navigator.sendBeacon) {
         navigator.sendBeacon(`${API_BASE_URL}/api/tab-closed`);
@@ -99,7 +103,9 @@ function App() {
       if (ws) {
         try {
           ws.close();
-        } catch (_) {}
+          } catch {
+    // Baglanti hatasinda sessizce devam et
+  }
       }
     };
   }, []);
@@ -147,18 +153,29 @@ function App() {
           if ('Notification' in window && Notification.permission === 'granted') {
             try {
               new Notification('EsnafRadar - Geri Arama Hatırlatıcısı', { body: msg });
-            } catch (_) {}
+              } catch {
+    // Baglanti hatasinda sessizce devam et
+  }
           }
         }
       }
-    } catch (_) {}
+      } catch {
+    // Baglanti hatasinda sessizce devam et
+  }
   }, []);
 
   React.useEffect(() => {
     if (!token) return;
-    checkDueReminders(token);
-    const interval = setInterval(() => checkDueReminders(token), 45000);
-    return () => clearInterval(interval);
+    const initialTimer = setTimeout(() => {
+      void checkDueReminders(token);
+    }, 0);
+    const interval = setInterval(() => {
+      void checkDueReminders(token);
+    }, 45000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, [token, checkDueReminders]);
 
   // Audit state
@@ -375,6 +392,7 @@ function App() {
       {/* Gelişmiş Dijital Röntgen Sonuç Modalı */}
       {auditResult && (
         <AuditModal
+          key={auditResult.merchant?.osm_id || auditResult.merchantName || 'audit-modal'}
           auditResult={auditResult}
           token={token}
           isSavingLead={isSavingLead}
