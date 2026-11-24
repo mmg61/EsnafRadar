@@ -481,9 +481,9 @@ function App() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleLogout}
-              className="flex items-center h-[42px] gap-2 px-4 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-canvas)] text-[var(--theme-contrast)] hover:bg-rose-500/15 hover:text-rose-500 hover:border-rose-500/30 transition-colors cursor-pointer font-semibold text-sm"
+              className="group flex items-center h-[42px] gap-2 px-4 rounded-xl border border-[var(--theme-border)] bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:bg-[var(--theme-muted)] hover:text-[var(--theme-contrast)] transition-colors cursor-pointer font-semibold text-sm"
             >
-              <LogOut size={16} />
+              <LogOut size={16} className="transition-transform duration-200 group-hover:translate-x-0.5" />
               <span>Çıkış Yap</span>
             </button>
           </div>
