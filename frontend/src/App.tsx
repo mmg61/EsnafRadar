@@ -26,7 +26,8 @@ import {
   MapPin,
   Bell,
   Settings,
-  LogOut
+  LogOut,
+  ChevronRight
 } from 'lucide-react';
 
 function App() {
@@ -509,224 +510,228 @@ function App() {
             onRemindersUpdated={() => checkDueReminders(token)}
           />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Sol Panel: Kontroller */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)]">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-[var(--theme-contrast)] flex items-center gap-2">
-                    <Compass size={18} className="text-[var(--theme-primary)]" />
-                    Radar Kontrolü
-                  </h2>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={handleGetLocation}
-                      className="inline-flex items-center gap-1 text-xs bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] px-2.5 py-1 rounded-lg text-[var(--theme-contrast)] border border-[var(--theme-border)] font-semibold transition-colors cursor-pointer"
-                    >
-                      <MapPin size={12} />
-                      <span>Konum</span>
-                    </button>
-                  </div>
-                </div>
+          <div className="space-y-6">
+            {/* Üst Satır: Radar Kontrolü ve Harita (Eşit Yükseklik) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              <div className="lg:col-span-4 flex">
+                <div className="w-full lg:min-h-[420px] bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)] flex flex-col justify-between gap-5">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-[var(--theme-contrast)] flex items-center gap-2">
+                        <Compass size={18} className="text-[var(--theme-primary)]" />
+                        <span>Radar Kontrolü</span>
+                      </h2>
+                      <button
+                        onClick={handleGetLocation}
+                        className="inline-flex items-center gap-1.5 text-xs bg-[var(--theme-canvas)] hover:bg-[var(--theme-muted)] px-3 py-1.5 rounded-lg text-[var(--theme-contrast)] border border-[var(--theme-border)] font-semibold transition-colors cursor-pointer"
+                      >
+                        <MapPin size={13} />
+                        <span>Konum</span>
+                      </button>
+                    </div>
 
-                <div className="space-y-4">
-                  {/* Sektör Seçici */}
-                  <div>
-                    <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">
-                      Hedef Sektör (Akıllı Filtre)
-                    </label>
-                    <select
-                      value={selectedCategory}
-                      onChange={e => setSelectedCategory(e.target.value)}
-                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-xs text-[var(--theme-contrast)] font-medium focus:outline-none focus:border-[var(--theme-primary)] cursor-pointer"
-                    >
-                      <option value="all">Tüm Sektörler (Geniş Tarama)</option>
-                      <option value="food">Yeme & İçme (Restoran, Kafe, Fırın)</option>
-                      <option value="beauty">Güzellik & Bakım (Kuaför, Berber, Spa)</option>
-                      <option value="auto">Oto & Sanayi (Tamir, Yıkama, Lastik)</option>
-                      <option value="retail">Perakende & Market (Butik, Bakkal)</option>
-                      <option value="health">Sağlık & Medikal (Eczane, Diş, Klinik)</option>
-                      <option value="services">Hizmet & Ofis (Emlak, Avukat, Otel, Spor)</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Enlem (Lat)</label>
+                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
+                        Hedef Sektör
+                      </label>
+                      <select
+                        value={selectedCategory}
+                        onChange={e => setSelectedCategory(e.target.value)}
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2.5 text-xs text-[var(--theme-contrast)] font-medium focus:outline-none focus:border-[var(--theme-primary)] cursor-pointer"
+                      >
+                        <option value="all">Tüm Sektörler (Geniş Tarama)</option>
+                        <option value="food">Yeme & İçme (Restoran, Kafe, Fırın)</option>
+                        <option value="beauty">Güzellik & Bakım (Kuaför, Berber, Spa)</option>
+                        <option value="auto">Oto & Sanayi (Tamir, Yıkama, Lastik)</option>
+                        <option value="retail">Perakende & Market (Butik, Bakkal)</option>
+                        <option value="health">Sağlık & Medikal (Eczane, Diş, Klinik)</option>
+                        <option value="services">Hizmet & Ofis (Emlak, Avukat, Otel, Spor)</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">Enlem (Lat)</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={center[0]}
+                          onChange={e => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val)) setCenter([val, center[1]]);
+                          }}
+                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-xs text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">Boylam (Lon)</label>
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={center[1]}
+                          onChange={e => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val)) setCenter([center[0], val]);
+                          }}
+                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-xs text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs text-[var(--theme-contrast)] mb-1.5">
+                        <span className="font-semibold">Tarama Yarıçapı</span>
+                        <span className="text-[var(--theme-primary)] font-bold">{radius} metre</span>
+                      </div>
                       <input
-                        type="number"
-                        step="0.0001"
-                        value={center[0]}
-                        onChange={e => {
-                          const val = parseFloat(e.target.value);
-                          if (!isNaN(val)) setCenter([val, center[1]]);
-                        }}
-                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
+                        type="range"
+                        min="100"
+                        max="2500"
+                        step="100"
+                        value={radius}
+                        onChange={e => setRadius(parseInt(e.target.value))}
+                        className="w-full accent-[var(--theme-primary)] cursor-pointer"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Boylam (Lon)</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        value={center[1]}
-                        onChange={e => {
-                          const val = parseFloat(e.target.value);
-                          if (!isNaN(val)) setCenter([center[0], val]);
-                        }}
-                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-2.5 py-1.5 text-xs text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs text-[var(--theme-contrast)] mb-1">
-                      <span className="font-semibold">Tarama Yarıçapı</span>
-                      <span className="text-[var(--theme-primary)] font-bold">{radius} metre</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="100"
-                      max="2500"
-                      step="100"
-                      value={radius}
-                      onChange={e => setRadius(parseInt(e.target.value))}
-                      className="w-full accent-[var(--theme-primary)] cursor-pointer"
-                    />
                   </div>
 
                   <button
                     onClick={() => handleScan()}
                     disabled={isScanning || isAuditing}
-                    className="w-full flex items-center justify-center gap-2 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold py-2.5 rounded-lg border border-[var(--theme-border)] transition-colors disabled:opacity-50 text-sm cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] font-semibold h-11 rounded-xl border border-[var(--theme-border)] transition-colors disabled:opacity-50 text-sm cursor-pointer"
                   >
                     {isScanning ? (
                       <span className="animate-pulse">Derin Tarama Yapılıyor...</span>
                     ) : (
                       <>
                         <Search size={16} />
-                        Radarı Başlat & Tara
+                        <span>Radarı Başlat & Tara</span>
                       </>
                     )}
                   </button>
                 </div>
               </div>
 
-              {/* Bulunan Esnaflar Listesi */}
-              <div className="bg-[var(--theme-surface)] p-5 rounded-xl border border-[var(--theme-border)] space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-[var(--theme-contrast)]">
-                    Bulunan İşletmeler ({filteredMerchants.length}
-                    {filteredMerchants.length !== merchants.length ? ` / ${merchants.length}` : ''})
-                  </h2>
-                </div>
-
-                {merchants.length > 0 && (
-                  <div className="space-y-2 pt-1">
-                    <input
-                      type="text"
-                      placeholder="Sonuçlarda ara..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-1.5 text-xs text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
-                    />
-                    <div className="flex flex-col gap-1.5">
-                      <label className="flex items-center gap-2 text-xs text-[var(--theme-contrast)] font-medium cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={filterOnlyNoWebsite}
-                          onChange={e => setFilterOnlyNoWebsite(e.target.checked)}
-                          className="accent-[var(--theme-primary)] rounded cursor-pointer"
-                        />
-                        <span>Sadece Web Sitesi Olmayanlar</span>
-                      </label>
-                      <label className="flex items-center gap-2 text-xs text-[var(--theme-contrast)] font-medium cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={filterOnlyWithPhone}
-                          onChange={e => setFilterOnlyWithPhone(e.target.checked)}
-                          className="accent-[var(--theme-primary)] rounded cursor-pointer"
-                        />
-                        <span>Sadece Telefonu Olanlar</span>
-                      </label>
-                      <label className="flex items-center gap-2 text-xs text-[var(--theme-contrast)] font-medium cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={hideCorporateChains}
-                          onChange={e => setHideCorporateChains(e.target.checked)}
-                          className="accent-[var(--theme-primary)] rounded cursor-pointer"
-                        />
-                        <span>Kurumsal Zincirleri Gizle (Yerel Esnaf)</span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                <div className="h-[280px] overflow-y-auto space-y-2.5 pr-1">
-                  {merchants.length === 0 ? (
-                    <p className="text-[var(--theme-contrast)]/70 text-xs text-center mt-12 leading-relaxed">
-                      Haritada konumu seçin veya hedef pini sürükleyin, ardından "Radarı Başlat" butonuna basın.
-                    </p>
-                  ) : filteredMerchants.length === 0 ? (
-                    <p className="text-[var(--theme-contrast)]/70 text-xs text-center mt-12">
-                      Arama kriterine uygun işletme bulunamadı.
-                    </p>
-                  ) : (
-                    filteredMerchants.map(m => (
-                      <div
-                        key={m.osm_id}
-                        className="p-3 bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)] hover:bg-[var(--theme-muted)]/40 transition-colors cursor-pointer group"
-                        onClick={() => handleAudit(m)}
-                      >
-                        <div className="flex items-start justify-between gap-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--theme-surface)] text-[var(--theme-contrast)] border border-[var(--theme-border)] shrink-0">
-                              {m.category_icon || 'ISL'}
-                            </span>
-                            <h3 className="font-bold text-xs truncate text-[var(--theme-contrast)]">
-                              {m.name}
-                            </h3>
-                          </div>
-                          {m.lead_potential_score && (
-                            <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] shrink-0">
-                              %{m.lead_potential_score}
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="text-[11px] text-[var(--theme-contrast)]/75 mt-0.5 truncate">
-                          {m.category_label || m.category}
-                        </p>
-
-                        <div className="flex items-center justify-between text-[10px] mt-2 pt-1.5 border-t border-[var(--theme-border)]">
-                          <span className={m.phone ? 'text-[var(--theme-contrast)] font-semibold' : 'text-[var(--theme-contrast)]/50'}>
-                            {m.phone ? 'Tel: Mevcut' : 'Tel: Yok'}
-                          </span>
-                          <span className={m.website ? 'text-[var(--theme-primary)] font-semibold' : 'text-amber-600 font-semibold'}>
-                            {m.website
-                              ? m.is_corporate_chain
-                                ? 'Kurumsal Web'
-                                : 'Web Mevcut'
-                              : 'Haritada Web Yok'}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+              <div className="lg:col-span-8 flex">
+                <MapRadar
+                  center={center}
+                  radius={radius}
+                  merchants={filteredMerchants}
+                  isScanning={isScanning}
+                  onAudit={m => handleAudit(m)}
+                  onCenterChange={setCenter}
+                />
               </div>
             </div>
 
-            {/* Sağ Panel: Harita */}
-            <div className="lg:col-span-3">
-              <MapRadar
-                center={center}
-                radius={radius}
-                merchants={filteredMerchants}
-                isScanning={isScanning}
-                onAudit={m => handleAudit(m)}
-                onCenterChange={setCenter}
-              />
+            {/* Alt Satır: Bulunan İşletmeler (Tam Genişlik & Basit Kutu Görünümü) */}
+            <div className="bg-[var(--theme-surface)] p-6 rounded-xl border border-[var(--theme-border)] space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-base font-bold text-[var(--theme-contrast)]">
+                    Bulunan İşletmeler
+                  </h2>
+                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 border border-[var(--theme-border)]">
+                    {filteredMerchants.length}
+                    {filteredMerchants.length !== merchants.length ? ` / ${merchants.length}` : ''}
+                  </span>
+                </div>
+
+                {merchants.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative w-full sm:w-56">
+                      <Search size={14} className="absolute left-3 top-2.5 text-[var(--theme-contrast)]/60" />
+                      <input
+                        type="text"
+                        placeholder="Sonuçlarda ara..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setFilterOnlyNoWebsite(v => !v)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                        filterOnlyNoWebsite
+                          ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
+                          : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
+                      }`}
+                    >
+                      Web Sitesi Yok
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setFilterOnlyWithPhone(v => !v)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                        filterOnlyWithPhone
+                          ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
+                          : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
+                      }`}
+                    >
+                      Telefonu Var
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setHideCorporateChains(v => !v)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                        hideCorporateChains
+                          ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)] border-[var(--theme-border)]'
+                          : 'bg-[var(--theme-canvas)] text-[var(--theme-contrast)]/80 hover:text-[var(--theme-contrast)] border-[var(--theme-border)]'
+                      }`}
+                    >
+                      Zincirleri Gizle
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {merchants.length === 0 ? (
+                <div className="py-10 text-center bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)]">
+                  <p className="text-[var(--theme-contrast)]/70 text-xs">
+                    Haritada konumu seçin veya hedef pini sürükleyin, ardından &quot;Radarı Başlat &amp; Tara&quot; butonuna basın.
+                  </p>
+                </div>
+              ) : filteredMerchants.length === 0 ? (
+                <div className="py-10 text-center bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)]">
+                  <p className="text-[var(--theme-contrast)]/70 text-xs">
+                    Seçili filtrelere uygun işletme bulunamadı.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {filteredMerchants.map(m => (
+                    <button
+                      key={m.osm_id}
+                      type="button"
+                      onClick={() => handleAudit(m)}
+                      className="group text-left p-3.5 bg-[var(--theme-canvas)] rounded-xl border border-[var(--theme-border)] hover:bg-[var(--theme-muted)]/60 transition-colors cursor-pointer flex flex-col justify-between gap-3"
+                    >
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-sm truncate text-[var(--theme-contrast)]">
+                          {m.name}
+                        </h3>
+                        <p className="text-xs text-[var(--theme-contrast)]/65 mt-0.5 truncate">
+                          {m.category_label || m.category}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-[var(--theme-contrast)]/70">
+                        <span>
+                          {m.website ? 'Web Var' : 'Web Yok'} • {m.phone ? 'Tel Var' : 'Tel Yok'}
+                        </span>
+                        <ChevronRight
+                          size={14}
+                          className="text-[var(--theme-contrast)]/50 group-hover:text-[var(--theme-contrast)] group-hover:translate-x-0.5 transition-all shrink-0"
+                        />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
