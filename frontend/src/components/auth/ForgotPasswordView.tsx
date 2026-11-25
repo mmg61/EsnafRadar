@@ -135,8 +135,8 @@ export const ForgotPasswordView: React.FC<ForgotPasswordViewProps> = ({
       )}
 
       {authError && (
-        <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-500 text-xs font-medium">
-          <AlertCircle size={16} className="shrink-0 mt-0.5 text-rose-500" />
+        <div className="flex items-start gap-2.5 p-3.5 mb-5 rounded-xl bg-[var(--theme-canvas)] border border-[var(--theme-primary)]/45 text-[var(--theme-contrast)] text-xs font-medium">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-[var(--theme-primary)]" />
           <span>{authError}</span>
         </div>
       )}
