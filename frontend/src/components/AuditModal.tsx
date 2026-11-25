@@ -79,6 +79,18 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [recommendedPackage, setRecommendedPackage] = useState<string>(() => auditResult.recommended_package || '');
   const [valuePropositions, setValuePropositions] = useState<string[]>(() => auditResult.value_propositions || []);
 
+  // Pencere açıkken arka plan (ana sayfa) kaydırmasını tamamen kilitle
+  useEffect(() => {
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, []);
+
   useEffect(() => {
     if (!activeToken) return;
     let cancelled = false;
@@ -319,7 +331,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-hidden overscroll-contain">
       <div className="bg-[var(--theme-surface)] w-full max-w-5xl rounded-2xl border border-[var(--theme-border)] shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
         <div className="bg-[var(--theme-canvas)] px-7 py-5 border-b border-[var(--theme-border)] flex justify-between items-center gap-4 shrink-0">
           <div>
@@ -393,7 +405,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           )}
         </div>
 
-        <div className="p-7 sm:p-9 space-y-7 overflow-y-auto flex-1">
+        <div className="p-7 sm:p-9 space-y-7 overflow-y-auto no-scrollbar overscroll-contain flex-1">
           {pitchStatusMessage && (
             <div className="px-4 py-3 rounded-xl bg-[var(--theme-canvas)] border border-[var(--theme-primary)] text-[var(--theme-contrast)] text-sm flex items-center gap-2">
               <CheckCircle2 size={16} className="text-[var(--theme-primary)] shrink-0" />

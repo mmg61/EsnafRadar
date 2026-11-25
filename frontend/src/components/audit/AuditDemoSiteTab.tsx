@@ -18,6 +18,14 @@ export const AuditDemoSiteTab: React.FC<AuditDemoSiteTabProps> = ({
 }) => {
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
+  // Önizleme alanında tüm bağlantı ve buton tıklamalarını devre dışı bırak
+  const nonInteractivePreviewHtml = demoSiteHtml
+    ? demoSiteHtml.replace(
+        '</head>',
+        '<style>*, *::before, *::after { cursor: default !important; user-select: none !important; } a, button, [href], [role="button"] { pointer-events: none !important; }</style></head>'
+      )
+    : '';
+
   return (
     <div className="space-y-4">
       <div className="bg-[var(--theme-canvas)] px-5 py-3.5 rounded-2xl border border-[var(--theme-border)] flex flex-wrap items-center justify-between gap-3">
@@ -86,7 +94,7 @@ export const AuditDemoSiteTab: React.FC<AuditDemoSiteTabProps> = ({
             title={`${merchantName} Örnek Web Sitesi`}
             sandbox=""
             referrerPolicy="no-referrer"
-            srcDoc={demoSiteHtml}
+            srcDoc={nonInteractivePreviewHtml}
             className={`rounded-xl border border-[var(--theme-border)] transition-all duration-200 ${
               previewDevice === 'mobile'
                 ? 'w-[390px] h-[600px]'
