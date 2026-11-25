@@ -251,3 +251,38 @@ def test_register_and_update_company_name():
     )
     assert upd.status_code == 200
     assert upd.json()["company_name"] == "Kaya Web Atolyesi"
+
+
+def test_website_accuracy_prevents_brand_and_directory_false_positives():
+    from services.brands import resolve_known_brand_website
+    from services.overpass import _clean_osm_merchant_website
+    from services.auditor import _build_compound_domain_slugs
+
+    # Yerel esnaf soyadı / isim çakışmaları kurumsal zincir sayılmamalıdır
+    assert resolve_known_brand_website("Karaca Kasap") is None
+    assert resolve_known_brand_website("Karaca Eczanesi") is None
+    assert resolve_known_brand_website("Mavi Kuaför") is None
+    assert resolve_known_brand_website("Taç Pide Salonu") is None
+    assert resolve_known_brand_website("PTT Yanı Büfe") is None
+    assert resolve_known_brand_website("Migros Karşısı Tekel") is None
+
+    # Gerçek kurumsal zincirler doğru eşleşmeye devam etmelidir
+    assert resolve_known_brand_website("Karaca") == "https://www.karaca.com"
+    assert resolve_known_brand_website("Mavi Jeans") == "https://www.mavi.com"
+    assert resolve_known_brand_website("BİM Market") == "https://www.bim.com.tr"
+    assert resolve_known_brand_website("A101 Yeni Mağazacılık") == "https://www.a101.com.tr"
+
+    # OSM etiketlerindeki sosyal medya ve yemek sepeti linkleri resmi site sayılmamalıdır
+    assert _clean_osm_merchant_website("https://www.facebook.com/kuaforali") == (None, None)
+    assert _clean_osm_merchant_website("https://www.yemeksepeti.com/restaurant/xyz") == (None, None)
+    assert _clean_osm_merchant_website("https://www.instagram.com/modakuafor") == (
+        None,
+        "https://www.instagram.com/modakuafor",
+    )
+    assert _clean_osm_merchant_website("https://www.modadisklinigi.com") == (
+        "https://www.modadisklinigi.com",
+        None,
+    )
+
+    # Tek kelimelik kör alan adı tahminleri üretilmemelidir
+    assert "yildiz" not in _build_compound_domain_slugs("Yıldız Kuaför")

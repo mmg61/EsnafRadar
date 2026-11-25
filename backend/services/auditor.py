@@ -203,14 +203,22 @@ class GeminiAuditResult(BaseModel):
 
 
 DIRECTORY_BLACKLIST = {
-    "duckduckgo.com", "google.com", "google.com.tr", "bing.com", "yahoo.com", "yandex.com", "yandex.com.tr",
+    "duckduckgo.com", "google.com", "google.com.tr", "goo.gl", "maps.app.goo.gl",
+    "bing.com", "yahoo.com", "yandex.com", "yandex.com.tr",
     "facebook.com", "fb.com", "instagram.com", "linkedin.com", "twitter.com", "x.com", "youtube.com", "tiktok.com",
-    "wa.me", "whatsapp.com", "t.me", "pinterest.com", "foursquare.com", "swarmapp.com", "tripadvisor.com",
-    "tripadvisor.com.tr", "yelp.com", "yelp.com.tr", "sikayetvar.com", "eksisozluk.com", "wikipedia.org",
-    "bulurum.com", "yellowpages.com.tr", "yemeksepeti.com", "getir.com", "trendyol.com", "hepsiburada.com",
-    "n11.com", "sahibinden.com", "hepsiemlak.com", "emlakjet.com", "kariyer.net", "armut.com",
-    "doktortakvimi.com", "eniyihekim.com", "findglocal.com", "cylex.com.tr", "neredekal.com", "etstur.com",
-    "obilet.com", "zomato.com", "harita.gov.tr", "rehber.com", "firmarehberi.com", "turkcebilgi.com"
+    "wa.me", "whatsapp.com", "t.me", "linktr.ee", "pinterest.com", "foursquare.com", "swarmapp.com",
+    "tripadvisor.com", "tripadvisor.com.tr", "yelp.com", "yelp.com.tr", "sikayetvar.com",
+    "eksisozluk.com", "wikipedia.org", "bulurum.com", "yellowpages.com.tr", "birmilyonnokta.com",
+    "yemeksepeti.com", "getir.com", "trendyol.com", "hepsiburada.com", "n11.com", "amazon.com.tr",
+    "akakce.com", "cimri.com", "sahibinden.com", "hepsiemlak.com", "emlakjet.com", "zingat.com",
+    "kariyer.net", "iskur.gov.tr", "armut.com", "ustasiyapsin.com", "tavsiyeediyorum.com",
+    "doktortakvimi.com", "doktorsitesi.com", "eniyihekim.com", "kolayrandevu.com",
+    "findglocal.com", "cylex.com.tr", "haritamap.com", "nerede360.com", "mekanist.net",
+    "neredekal.com", "otelz.com", "etstur.com", "tatilbudur.com", "jollytur.com",
+    "booking.com", "hotels.com", "airbnb.com", "agoda.com", "obilet.com", "enuygun.com",
+    "zomato.com", "harita.gov.tr", "turkiye.gov.tr", "etbis.gov.tr", "rehber.com",
+    "firmarehberi.com", "turkcebilgi.com", "hurriyet.com.tr", "milliyet.com.tr", "sabah.com.tr",
+    "haberturk.com", "sozcu.com.tr", "cumhuriyet.com.tr", "ntv.com.tr", "cnn.com", "onedio.com",
 }
 
 
@@ -404,42 +412,201 @@ def _find_contact_subpage_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
     return candidates
 
 
-def _slugify_turkish_name(name: str) -> list[str]:
-    tr_map = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
-    clean = name.translate(tr_map).lower()
-    clean = re.sub(r"[^a-z0-9\s]", " ", clean)
-    stop_words = {"ve", "ile", "ltd", "sti", "as", "san", "tic", "subesi", "sube", "merkez", "istanbul", "ankara", "izmir"}
-    words = [w for w in clean.split() if len(w) > 1 and w not in stop_words]
-    if not words:
+_ASCII_TR_MAP = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
+
+_GENERIC_STOP_TOKENS = {
+    "ve", "ile", "ltd", "sti", "as", "san", "tic", "ticaret", "sanayi", "subesi", "sube",
+    "merkez", "merkezi", "istanbul", "ankara", "izmir", "bursa", "antalya", "adana", "konya",
+    "kadikoy", "besiktas", "sisli", "uskudar", "maltepe", "atasehir", "bakirkoy", "fatih",
+    "beyoglu", "kartal", "pendik", "umraniye", "sariyer", "ozel", "yeni", "eski", "meshur",
+    "kardesler", "ogullari", "grup", "group", "yerel", "isletme",
+}
+
+_SECTOR_WORDS = {
+    "restoran", "restaurant", "lokanta", "lokantasi", "kafe", "cafe", "kahve", "firin", "unlu",
+    "pastane", "pastanesi", "kebap", "pide", "doner", "kofte", "balik", "kasap", "sarkuteri",
+    "kuafor", "kuaforu", "berber", "guzellik", "bakim", "spa", "masaj",
+    "oto", "otomotiv", "tamir", "servis", "servisi", "yikama", "lastik", "galeri",
+    "market", "bakkal", "butik", "giyim", "ayakkabi", "kuyumcu", "optik", "cicek", "cicekci",
+    "kitap", "kirtasiye", "mobilya", "nalbur", "hirdavat", "petshop",
+    "eczane", "eczanesi", "dis", "klinik", "klinigi", "poliklinik", "doktor", "veteriner", "medikal",
+    "emlak", "gayrimenkul", "hukuk", "avukat", "muhasebe", "sigorta", "turizm", "terzi",
+    "fotograf", "mimarlik", "elektrik", "tesisat", "cilingir", "marangoz", "otel", "pansiyon", "spor", "gym",
+}
+
+
+def _ascii_tokens(text: str) -> list[str]:
+    low = (text or "").replace("İ", "i").replace("I", "ı").lower().translate(_ASCII_TR_MAP)
+    return [t for t in re.split(r"[^a-z0-9]+", low) if len(t) >= 2]
+
+
+def _extract_merchant_identity_tokens(name: str, category: Optional[str]) -> tuple[list[str], list[str]]:
+    """
+    İşletme adından:
+    1) Ayırt edici özel isim kelimelerini (distinctive_tokens)
+    2) Sektör / meslek anahtar kelimelerini (sector_tokens)
+    ayrıştırır.
+    """
+    raw_tokens = _ascii_tokens(name)
+    cat_tokens = [t for t in _ascii_tokens(category or "") if t not in _GENERIC_STOP_TOKENS]
+
+    distinctive: list[str] = []
+    sector: list[str] = []
+    for tok in raw_tokens:
+        if tok in _GENERIC_STOP_TOKENS:
+            continue
+        if tok in _SECTOR_WORDS:
+            if tok not in sector:
+                sector.append(tok)
+        elif len(tok) >= 3 and tok not in distinctive:
+            distinctive.append(tok)
+
+    for ct in cat_tokens:
+        if ct in _SECTOR_WORDS and ct not in sector:
+            sector.append(ct)
+
+    return distinctive, sector
+
+
+def _build_compound_domain_slugs(name: str) -> list[str]:
+    """
+    Yalnızca en az 2 anlamlı kelimeden oluşan tam birleşik alan adı adayları üretir.
+    Tek kelimelik ('yildiz.com', 'guven.com.tr', 'moda.com' gibi) kör tahminler yanlış eşleşme ürettiği için yapılmaz.
+    """
+    tokens = [t for t in _ascii_tokens(name) if t not in {"ve", "ile", "ltd", "sti", "as", "san", "tic", "subesi", "sube"}]
+    if len(tokens) < 2:
         return []
 
-    slugs = []
-    # Tam birleşik isim (örn: modadisklinigi)
-    joined_all = "".join(words[:3])
-    if 3 <= len(joined_all) <= 26:
+    slugs: list[str] = []
+    joined_all = "".join(tokens[:3])
+    if 6 <= len(joined_all) <= 28:
         slugs.append(joined_all)
-    # İlk iki kelime (örn: modadis)
-    if len(words) >= 2:
-        joined_two = "".join(words[:2])
-        if 3 <= len(joined_two) <= 22 and joined_two not in slugs:
+
+    if len(tokens) >= 3:
+        joined_two = "".join(tokens[:2])
+        if 6 <= len(joined_two) <= 24 and joined_two not in slugs:
             slugs.append(joined_two)
-    # Tek anlamlı marka kelimesi (örn: a101, espressolab)
-    if len(words[0]) >= 4 and words[0] not in slugs:
-        slugs.append(words[0])
 
     return slugs[:2]
+
+
+_PARKED_OR_INVALID_MARKERS = (
+    "domain for sale", "this domain is for sale", "buy this domain", "satılık domain",
+    "satilik domain", "satılık alan adı", "bu alan adı satılıktır", "sedoparking",
+    "hugedomains", "afternic", "dan.com", "parkingcrew", "bodis.com",
+    "apache2 ubuntu default", "welcome to nginx", "index of /", "cgi-sys/defaultwebpage",
+    "account suspended", "site yapım aşamasında", "deneme bonusu", "sweet bonanza", "casino",
+)
+
+
+async def _verify_candidate_belongs_to_merchant(
+    candidate_url: str,
+    name: str,
+    category: Optional[str],
+    merchant_phone: Optional[str],
+    headers: dict[str, str],
+) -> Optional[str]:
+    """
+    Aday web sayfasını indirir ve gerçekten aranan yerel işletmeye ait olup olmadığını
+    başlık, H1, sektör uyumu, Türkçe içerik ve telefon numarası üzerinden doğrular.
+    Şüpheli veya alakasız sitelerde None döndürerek yanlış web sitesi atanmasını engeller.
+    """
+    if not _is_safe_public_url(candidate_url):
+        return None
+
+    try:
+        async with _create_safe_async_client(headers=headers, timeout=3.5) as client:
+            resp = await _safe_get_with_redirects(client, candidate_url, timeout=3.5, max_redirects=3)
+            if resp.status_code >= 400 or not resp.text or len(resp.text) < 350:
+                return None
+
+            final_parsed = urlparse(str(resp.url))
+            final_domain = (final_parsed.hostname or "").lower().replace("www.", "")
+            if not final_domain or _is_blocked_hostname(final_domain):
+                return None
+            if any(final_domain == blk or final_domain.endswith("." + blk) for blk in DIRECTORY_BLACKLIST):
+                return None
+
+            html_sample = resp.text[:45000]
+            low_raw = html_sample.lower()
+            if any(marker in low_raw for marker in _PARKED_OR_INVALID_MARKERS):
+                return None
+
+            soup = BeautifulSoup(html_sample, "html.parser")
+            title_txt = soup.title.string.strip() if (soup.title and soup.title.string) else ""
+            h1_el = soup.find("h1")
+            h1_txt = h1_el.get_text(" ", strip=True) if h1_el else ""
+            og_site_el = soup.find("meta", attrs={"property": "og:site_name"})
+            og_site_txt = str(og_site_el.get("content", "")).strip() if og_site_el else ""
+            meta_desc_el = soup.find("meta", attrs={"name": re.compile(r"^description$", re.I)})
+            meta_desc_txt = str(meta_desc_el.get("content", "")).strip() if meta_desc_el else ""
+
+            header_raw = f"{title_txt} {h1_txt} {og_site_txt} {meta_desc_txt}"
+            header_ascii = header_raw.replace("İ", "i").replace("I", "ı").lower().translate(_ASCII_TR_MAP)
+            body_visible = " ".join(soup.stripped_strings)[:25000]
+            body_ascii = body_visible.replace("İ", "i").replace("I", "ı").lower().translate(_ASCII_TR_MAP)
+            domain_clean = final_domain.split(".")[0].replace("-", "")
+
+            distinctive_tokens, sector_tokens = _extract_merchant_identity_tokens(name, category)
+
+            # 1. Telefon numarası eşleşmesi (en kesin doğrulama)
+            if merchant_phone:
+                target_digits = re.sub(r"\D", "", merchant_phone)[-10:]
+                if len(target_digits) == 10:
+                    page_digits_blob = re.sub(r"\D", "", html_sample)
+                    if target_digits in page_digits_blob:
+                        if not distinctive_tokens or any(t in header_ascii or t in domain_clean for t in distinctive_tokens):
+                            return f"{final_parsed.scheme}://{final_parsed.netloc}"
+
+            # Türkçe site / yerel işletme sinyali kontrolü (Yabancı dildeki global siteleri eler)
+            has_turkish_signal = (
+                final_domain.endswith(".tr")
+                or any(ch in (header_raw + body_visible[:4000]) for ch in "çğıöşüÇĞİÖŞÜ")
+                or any(w in body_ascii for w in ("iletisim", "hakkimizda", "adres", "telefon", "hizmetlerimiz", "randevu"))
+            )
+            if not has_turkish_signal:
+                return None
+
+            if not distinctive_tokens:
+                return None
+
+            # 2. En az 2 ayırt edici isim kelimesi varsa (Örn: "Moda Akdeniz Veteriner")
+            if len(distinctive_tokens) >= 2:
+                must_match = distinctive_tokens[:2]
+                if all(tok in header_ascii or tok in domain_clean for tok in must_match):
+                    if not sector_tokens or any(st in header_ascii or st in body_ascii for st in sector_tokens):
+                        return f"{final_parsed.scheme}://{final_parsed.netloc}"
+                return None
+
+            # 3. Tek ayırt edici kelime varsa (Örn: "Yıldız Kuaför"):
+            # "Yıldız Holding" veya başka sektördeki "Yıldız" firmalarıyla karışmaması için
+            # hem alan adında hem sayfa başlığında ayırt edici kelime VE sektör kelimesi birlikte geçmelidir.
+            single_tok = distinctive_tokens[0]
+            if len(single_tok) < 4 or not sector_tokens:
+                return None
+            if (
+                single_tok in domain_clean
+                and single_tok in header_ascii
+                and any(st in header_ascii for st in sector_tokens)
+            ):
+                return f"{final_parsed.scheme}://{final_parsed.netloc}"
+
+            return None
+    except Exception:
+        return None
 
 
 async def _discover_website_and_socials(
     name: str,
     category: Optional[str],
-    headers: dict[str, str]
+    headers: dict[str, str],
+    merchant_phone: Optional[str] = None,
 ) -> tuple[Optional[str], dict[str, str]]:
     """
     Haritada web sitesi kaydı bulunmayan işletmeler için:
-    1) Bilinen kurumsal zincir sözlüğünü kontrol eder.
-    2) DuckDuckGo HTML araması üzerinden resmi web sitesini ve sosyal medya profillerini keşfeder.
-    3) Türkçe alan adı (.com.tr / .com) adaylarını hızlıca yoklar.
+    1) Bilinen kurumsal zincir sözlüğünü sıkı kurallarla kontrol eder.
+    2) DuckDuckGo HTML araması ve çok kelimeli alan adı adaylarını bulur.
+    3) Bulunan her adayın içeriğini indirerek işletme adı, sektör, Türkçe içerik ve telefonla doğrular.
     """
     discovered_socials: dict[str, str] = {}
 
@@ -448,10 +615,11 @@ async def _discover_website_and_socials(
     if brand_url:
         return brand_url, discovered_socials
 
-    slugs = _slugify_turkish_name(name)
-    primary_keyword = slugs[0][:6] if slugs else ""
+    distinctive_tokens, _ = _extract_merchant_identity_tokens(name, category)
+    compound_slugs = _build_compound_domain_slugs(name)
+    candidate_sites: list[str] = []
 
-    # 2. DuckDuckGo HTML Araması ile Canlı Web & Sosyal Medya Keşfi (SSRF & Yönlendirme Korumalı)
+    # 2. DuckDuckGo HTML Araması ile Aday Web & Sosyal Medya Keşfi
     try:
         query = f'"{name}" {category or ""}'.strip()
         async with _create_safe_async_client(headers=headers, timeout=4.5) as client:
@@ -478,56 +646,53 @@ async def _discover_website_and_socials(
                     if not domain or _is_blocked_hostname(domain):
                         continue
 
-                    # Sosyal medya profili yakalama
+                    # Sosyal medya profili yakalama (yalnızca işletme adı token'ı URL'de geçiyorsa)
+                    href_ascii = raw_href.lower().translate(_ASCII_TR_MAP)
+                    matches_social_handle = bool(
+                        distinctive_tokens and any(tok in href_ascii for tok in distinctive_tokens[:2])
+                    )
                     if "instagram.com" in domain and "instagram" not in discovered_socials:
-                        if not any(x in raw_href.lower() for x in ["/p/", "/reel/", "/explore/"]):
+                        if matches_social_handle and not any(x in raw_href.lower() for x in ["/p/", "/reel/", "/explore/"]):
                             discovered_socials["instagram"] = raw_href
                         continue
                     if "facebook.com" in domain and "facebook" not in discovered_socials:
-                        discovered_socials["facebook"] = raw_href
+                        if matches_social_handle:
+                            discovered_socials["facebook"] = raw_href
                         continue
                     if "linkedin.com" in domain and "linkedin" not in discovered_socials:
-                        discovered_socials["linkedin"] = raw_href
+                        if matches_social_handle:
+                            discovered_socials["linkedin"] = raw_href
                         continue
 
-                    # Rehber/dizin sitelerini atla
                     if any(domain == blk or domain.endswith("." + blk) for blk in DIRECTORY_BLACKLIST):
                         continue
 
-                    # Domain işletme adının anahtar kelimesini içeriyorsa ve public ise resmi sitedir
                     domain_root = domain.split(".")[0].replace("-", "")
                     candidate_site = f"{parsed.scheme}://{parsed.netloc}"
-                    if primary_keyword and len(primary_keyword) >= 3 and primary_keyword in domain_root:
-                        if _is_safe_public_url(candidate_site):
-                            return candidate_site, discovered_socials
+                    if distinctive_tokens and any(len(t) >= 4 and t in domain_root for t in distinctive_tokens[:2]):
+                        if candidate_site not in candidate_sites:
+                            candidate_sites.append(candidate_site)
+                            if len(candidate_sites) >= 3:
+                                break
     except Exception:
         pass
 
-    # 3. Akıllı Alan Adı (.com.tr / .com) Doğrulaması (verify=True ve DNS-Sabitlemeli SSRF Korumalı)
-    if slugs:
-        candidate_urls = []
-        for s in slugs[:2]:
-            candidate_urls.append(f"https://www.{s}.com.tr")
-            candidate_urls.append(f"https://www.{s}.com")
+    # 3. Çok kelimeli birleşik alan adı adaylarını ekle
+    for s in compound_slugs:
+        for u in (f"https://www.{s}.com.tr", f"https://www.{s}.com"):
+            if u not in candidate_sites:
+                candidate_sites.append(u)
 
-        async def _probe_url(u: str) -> Optional[str]:
-            try:
-                async with _create_safe_async_client(headers=headers, timeout=3.0) as c:
-                    r = await _safe_get_with_redirects(c, u, timeout=3.0, max_redirects=3)
-                    if r.status_code < 400 and len(r.text) > 400:
-                        text_low = r.text[:8000].lower()
-                        # Park edilmiş domain sayfalarını ele
-                        if any(park in text_low for park in ["domain for sale", "satılık domain", "sedoparking", "godaddy", "bu alan adı"]):
-                            return None
-                        return str(r.url).rstrip("/")
-            except Exception:
-                return None
-            return None
-
-        probe_results = await asyncio.gather(*[_probe_url(u) for u in candidate_urls])
-        for res_url in probe_results:
-            if res_url:
-                return res_url, discovered_socials
+    # 4. Aday siteleri gerçek içerik doğrulamasından geçir
+    if candidate_sites:
+        verify_tasks = [
+            _verify_candidate_belongs_to_merchant(u, name, category, merchant_phone, headers)
+            for u in candidate_sites[:5]
+        ]
+        verified_results = await asyncio.gather(*verify_tasks)
+        for verified_url in verified_results:
+            if verified_url:
+                return verified_url, discovered_socials
 
     return None, discovered_socials
 
@@ -680,9 +845,31 @@ async def run_audit(
     category: Optional[str] = None,
     user_gemini_key: Optional[str] = None,
     sender_name: Optional[str] = None,
-    agency_name: Optional[str] = None
+    agency_name: Optional[str] = None,
+    phone: Optional[str] = None,
 ) -> dict:
+    # Gelen website adresi sosyal medya veya rehber bağlantısıysa resmi web sitesi sayma
+    initial_socials: dict[str, str] = {}
+    if website and website.strip():
+        w_cand = website.strip()
+        if not w_cand.lower().startswith(("http://", "https://")):
+            w_cand = "https://" + w_cand
+        try:
+            p_init = urlparse(w_cand)
+            h_init = (p_init.hostname or "").lower().replace("www.", "")
+            if "instagram.com" in h_init:
+                initial_socials["instagram"] = w_cand
+                website = None
+            elif "facebook.com" in h_init or "fb.com" in h_init:
+                initial_socials["facebook"] = w_cand
+                website = None
+            elif any(h_init == blk or h_init.endswith("." + blk) for blk in DIRECTORY_BLACKLIST):
+                website = None
+        except Exception:
+            website = None
+
     result = {
+        "audit_schema_v": 2,
         "score": 0,
         "ssl_valid": False,
         "mobile_ready": False,
@@ -752,6 +939,9 @@ async def run_audit(
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
 
+    if initial_socials:
+        result["social_links"].update(initial_socials)
+
     # 0. Kurumsal Zincir Kontrolü (İsimden veya mevcut web adresinden)
     brand_url = resolve_known_brand_website(name)
     if brand_url:
@@ -763,7 +953,9 @@ async def run_audit(
 
     # 1. Eğer haritada web sitesi yoksa Otomatik Web & Sosyal Medya Keşif Motorunu çalıştır
     if not website or not website.strip():
-        discovered_url, discovered_socials = await _discover_website_and_socials(name, category, headers)
+        discovered_url, discovered_socials = await _discover_website_and_socials(
+            name, category, headers, merchant_phone=phone
+        )
         if discovered_socials:
             result["social_links"].update(discovered_socials)
         if discovered_url:

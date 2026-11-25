@@ -2,12 +2,9 @@ import React, { useState } from 'react';
 import {
   Copy,
   Check,
-  MessageSquare,
-  Mail,
   Sparkles,
   KeyRound,
   SlidersHorizontal,
-  Send,
   ChevronDown,
   ChevronUp,
   UserCheck
@@ -23,10 +20,6 @@ interface AuditProposalTabProps {
   agencyName: string;
   onAgencyNameChange: (val: string) => void;
   senderEmail?: string | null;
-  specialOffer: string;
-  onSpecialOfferChange: (val: string) => void;
-  customInstruction: string;
-  onCustomInstructionChange: (val: string) => void;
   aiConfigured: boolean;
   apiKeyInput: string;
   onApiKeyInputChange: (val: string) => void;
@@ -38,10 +31,6 @@ interface AuditProposalTabProps {
   onProposalMessageChange: (val: string) => void;
   copied: boolean;
   onCopyPitch: () => void;
-  waUrl: string | null;
-  mailUrl: string | null;
-  effectivePhone: string | null;
-  instagramUrl?: string | null;
 }
 
 export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
@@ -54,10 +43,6 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
   agencyName,
   onAgencyNameChange,
   senderEmail,
-  specialOffer,
-  onSpecialOfferChange,
-  customInstruction,
-  onCustomInstructionChange,
   aiConfigured,
   apiKeyInput,
   onApiKeyInputChange,
@@ -68,11 +53,7 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
   proposalMessage,
   onProposalMessageChange,
   copied,
-  onCopyPitch,
-  waUrl,
-  mailUrl,
-  effectivePhone,
-  instagramUrl
+  onCopyPitch
 }) => {
   const [showMessageSettings, setShowMessageSettings] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
@@ -82,19 +63,9 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
       {/* Tekil Teklif Mesajı Kutusu */}
       <div className="bg-[var(--theme-canvas)] p-6 rounded-2xl border border-[var(--theme-border)] space-y-4">
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-semibold text-[var(--theme-contrast)]/80">
-              Hazır Teklif Mesajı (Dilediğiniz kanaldan paylaşabilir veya düzenleyebilirsiniz)
-            </label>
-            <button
-              type="button"
-              onClick={onCopyPitch}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-xs font-semibold text-[var(--theme-contrast)] border border-[var(--theme-border)] transition-colors cursor-pointer"
-            >
-              {copied ? <Check size={13} /> : <Copy size={13} />}
-              <span>{copied ? 'Kopyalandı' : 'Metni Kopyala'}</span>
-            </button>
-          </div>
+          <label className="block text-xs font-semibold text-[var(--theme-contrast)]/80 mb-2">
+            Hazır Teklif Mesajı (Üzerinde değişiklik yapabilirsiniz)
+          </label>
 
           <textarea
             rows={8}
@@ -104,7 +75,7 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
           />
         </div>
 
-        {/* Metnin Altındaki Mesaj Ayarları Butonu ve Doğrudan Gönderim Aksiyonları */}
+        {/* Metnin Altında: Mesaj Ayarları ve Kopyala Butonu */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <button
             type="button"
@@ -116,39 +87,14 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
             {showMessageSettings ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            {waUrl && (
-              <a
-                href={waUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-xs font-semibold transition-colors"
-              >
-                <MessageSquare size={15} />
-                <span>WhatsApp ile Gönder ({effectivePhone})</span>
-              </a>
-            )}
-            {mailUrl && (
-              <a
-                href={mailUrl}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors"
-              >
-                <Mail size={15} />
-                <span>E-posta Gönder</span>
-              </a>
-            )}
-            {instagramUrl && (
-              <a
-                href={instagramUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--theme-surface)] hover:bg-[var(--theme-muted)] text-[var(--theme-contrast)] border border-[var(--theme-border)] text-xs font-semibold transition-colors"
-              >
-                <Send size={14} />
-                <span>Instagram Profilini Aç</span>
-              </a>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={onCopyPitch}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-[var(--theme-on-primary)] text-xs font-semibold transition-colors cursor-pointer"
+          >
+            {copied ? <Check size={15} /> : <Copy size={15} />}
+            <span>{copied ? 'Kopyalandı' : 'Metni Kopyala'}</span>
+          </button>
         </div>
       </div>
 
@@ -166,6 +112,7 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
             >
               <KeyRound size={13} />
               <span>{aiConfigured ? 'Gemini Ayarlı' : 'Gemini Anahtarı'}</span>
+              {showApiKeyModal ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             </button>
           </div>
 
@@ -178,7 +125,7 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
               className="p-4 bg-[var(--theme-surface)] rounded-xl border border-[var(--theme-border)] space-y-2.5 text-xs"
             >
               <div className="font-semibold text-[var(--theme-contrast)]">
-                Google Gemini API Anahtarı (Şifreli Saklanır)
+                Google Gemini API Anahtarı
               </div>
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <input
@@ -186,7 +133,7 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
                   value={apiKeyInput}
                   onChange={e => onApiKeyInputChange(e.target.value)}
                   placeholder="Google Gemini anahtarınızı yapıştırın (AIzaSy...)"
-                  className="flex-1 bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none"
+                  className="flex-1 bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                 />
                 <button
                   type="submit"
@@ -241,7 +188,7 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
             </div>
           </div>
 
-          {/* Üslup, Hizmet ve Ek Not Ayarları */}
+          {/* Üslup ve Hizmet Ayarları */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[var(--theme-border)]">
             <div>
               <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
@@ -274,32 +221,6 @@ export const AuditProposalTab: React.FC<AuditProposalTabProps> = ({
                 <option value="performans_reklam">Instagram ve Google Reklam Yönetimi</option>
                 <option value="e_ticaret">Online Sipariş / Randevu ve WhatsApp Hattı</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">
-                Özel İndirim veya Kampanya Notu
-              </label>
-              <input
-                type="text"
-                value={specialOffer}
-                onChange={e => onSpecialOfferChange(e.target.value)}
-                placeholder="Örn: Bu haftaya özel Google Harita kaydı ücretsiz"
-                className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-[var(--theme-contrast)]/80 mb-1">
-                Eklemek İstediğiniz Özel Not
-              </label>
-              <input
-                type="text"
-                value={customInstruction}
-                onChange={e => onCustomInstructionChange(e.target.value)}
-                placeholder="Örn: Paket servis siparişlerine vurgu yap"
-                className="w-full bg-[var(--theme-surface)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
-              />
             </div>
           </div>
 

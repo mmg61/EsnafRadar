@@ -114,11 +114,62 @@ function App() {
     };
   }, []);
 
-  // Radar state
+  // Radar state (Son kalınan konumu ve yarıçapı hatırla)
   const [isScanning, setIsScanning] = useState(false);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
-  const [center, setCenter] = useState<[number, number]>([40.990, 29.025]); // Kadıköy
-  const [radius, setRadius] = useState(500);
+  const [center, setCenter] = useState<[number, number]>(() => {
+    try {
+      const raw = localStorage.getItem('esnafradar_last_location');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { lat?: unknown; lon?: unknown };
+        if (
+          typeof parsed.lat === 'number' &&
+          typeof parsed.lon === 'number' &&
+          Number.isFinite(parsed.lat) &&
+          Number.isFinite(parsed.lon) &&
+          parsed.lat >= -90 &&
+          parsed.lat <= 90 &&
+          parsed.lon >= -180 &&
+          parsed.lon <= 180
+        ) {
+          return [parsed.lat, parsed.lon];
+        }
+      }
+    } catch {
+      // Gecersiz kayitta varsayilan konumu kullan
+    }
+    return [40.990, 29.025];
+  });
+  const [radius, setRadius] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('esnafradar_last_location');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { radius?: unknown };
+        if (
+          typeof parsed.radius === 'number' &&
+          Number.isFinite(parsed.radius) &&
+          parsed.radius >= 100 &&
+          parsed.radius <= 2500
+        ) {
+          return parsed.radius;
+        }
+      }
+    } catch {
+      // Varsayilan yaricapi kullan
+    }
+    return 500;
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(
+        'esnafradar_last_location',
+        JSON.stringify({ lat: center[0], lon: center[1], radius })
+      );
+    } catch {
+      // Depolama doluysa sessizce gec
+    }
+  }, [center, radius]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterOnlyNoWebsite, setFilterOnlyNoWebsite] = useState<boolean>(false);
@@ -236,11 +287,14 @@ function App() {
         merchant.website || null,
         token,
         merchant.category_label || merchant.category || undefined,
-        forceRefresh
+        forceRefresh,
+        merchant.phone || null
       );
+      const verifiedWebsite =
+        result.discovered_website || (result.has_website ? merchant.website : undefined);
       const enrichedMerchant: Merchant = {
         ...merchant,
-        website: merchant.website || result.discovered_website || undefined,
+        website: verifiedWebsite,
         website_source: result.website_source || merchant.website_source,
         phone:
           merchant.phone ||

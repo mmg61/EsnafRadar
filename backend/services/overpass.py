@@ -4,9 +4,60 @@ import logging
 import math
 import time
 from fastapi import HTTPException
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
+from urllib.parse import urlparse
 from services.brands import resolve_known_brand_website
 from services.auditor import _normalize_tr_phone
+
+NON_OFFICIAL_WEBSITE_DOMAINS = {
+    "facebook.com", "fb.com", "instagram.com", "linkedin.com", "twitter.com", "x.com",
+    "youtube.com", "tiktok.com", "wa.me", "whatsapp.com", "t.me", "linktr.ee",
+    "yemeksepeti.com", "getir.com", "trendyol.com", "foursquare.com", "swarmapp.com",
+    "tripadvisor.com", "tripadvisor.com.tr", "yelp.com", "yelp.com.tr",
+    "google.com", "google.com.tr", "goo.gl", "maps.app.goo.gl", "yandex.com", "yandex.com.tr",
+    "bulurum.com", "yellowpages.com.tr", "birmilyonnokta.com", "haritamap.com",
+    "mekanist.net", "zomato.com", "sahibinden.com", "hepsiemlak.com", "emlakjet.com",
+    "armut.com", "doktortakvimi.com", "eniyihekim.com", "sikayetvar.com",
+}
+
+
+def _clean_osm_merchant_website(raw_url: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    """
+    OSM website/url etiketini doğrular.
+    Instagram bağlantısıysa (None, instagram_url) döndürür;
+    sosyal medya, yemek siparişi veya rehber sitesiyse (None, None) döndürür;
+    gerçek işletme alan adıysa (temiz_url, None) döndürür.
+    """
+    if not raw_url or not isinstance(raw_url, str):
+        return None, None
+
+    candidate = raw_url.split(";")[0].split(",")[0].strip()
+    if not candidate or " " in candidate or "@" in candidate:
+        return None, None
+
+    if not candidate.lower().startswith(("http://", "https://")):
+        if "." in candidate and not candidate.startswith("/"):
+            candidate = "https://" + candidate
+        else:
+            return None, None
+
+    try:
+        parsed = urlparse(candidate)
+        host = (parsed.hostname or "").lower().strip(".")
+        if host.startswith("www."):
+            host = host[4:]
+        if not host or "." not in host:
+            return None, None
+
+        if host == "instagram.com" or host.endswith(".instagram.com"):
+            return None, candidate
+
+        if any(host == d or host.endswith("." + d) for d in NON_OFFICIAL_WEBSITE_DOMAINS):
+            return None, None
+
+        return candidate, None
+    except Exception:
+        return None, None
 
 # Yedek Overpass API Sunucuları (Paralel yarış için)
 OVERPASS_URLS = [
@@ -420,15 +471,13 @@ async def search_merchants(lat: float, lon: float, radius: int, category: str = 
         ) if raw_phone else None
 
         email = tags.get("email") or tags.get("contact:email")
-        osm_website = (
+        raw_osm_website = (
             tags.get("website")
             or tags.get("contact:website")
             or tags.get("url")
             or tags.get("brand:website")
-            or tags.get("operator:website")
-            or tags.get("facebook")
-            or tags.get("contact:facebook")
         )
+        osm_website, insta_from_web = _clean_osm_merchant_website(raw_osm_website)
         brand_url = resolve_known_brand_website(name, tags.get("brand"), tags.get("operator"))
         is_corporate_chain = bool(brand_url)
 
@@ -442,7 +491,7 @@ async def search_merchants(lat: float, lon: float, radius: int, category: str = 
             website = None
             website_source = None
 
-        instagram = tags.get("contact:instagram") or tags.get("instagram")
+        instagram = tags.get("contact:instagram") or tags.get("instagram") or insta_from_web
         opening_hours = tags.get("opening_hours")
         address = format_address(tags)
 

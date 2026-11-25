@@ -18,7 +18,7 @@ import {
   getUserProfile
 } from '../api';
 import type { AuditResult } from '../types';
-import { normalizeAndDeduplicatePhones, formatWhatsAppNumber } from './audit/phoneUtils';
+import { normalizeAndDeduplicatePhones } from './audit/phoneUtils';
 import { AuditOverviewTab } from './audit/AuditOverviewTab';
 import { AuditProposalTab } from './audit/AuditProposalTab';
 import { AuditDemoSiteTab } from './audit/AuditDemoSiteTab';
@@ -62,8 +62,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [senderName, setSenderName] = useState<string>('');
   const [agencyName, setAgencyName] = useState<string>('');
   const [senderEmail, setSenderEmail] = useState<string | null>(null);
-  const [specialOffer, setSpecialOffer] = useState<string>('');
-  const [customInstruction, setCustomInstruction] = useState<string>('');
   const [isGeneratingPitch, setIsGeneratingPitch] = useState<boolean>(false);
   const [pitchStatusMessage, setPitchStatusMessage] = useState<string | null>(null);
 
@@ -77,9 +75,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   const [proposalMessage, setProposalMessage] = useState<string>(
     () => auditResult.sales_pitch_whatsapp || auditResult.sales_pitch_email || ''
-  );
-  const [emailSubject, setEmailSubject] = useState<string>(
-    () => auditResult.sales_pitch_email_subject || `${displayName} - Web Sitesi ve Tanıtım İnceleme Notu`
   );
   const [recommendedPackage, setRecommendedPackage] = useState<string>(() => auditResult.recommended_package || '');
   const [valuePropositions, setValuePropositions] = useState<string[]>(() => auditResult.value_propositions || []);
@@ -267,7 +262,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       setApiKeyInput('');
       setPitchStatusMessage(
         updated.configured
-          ? 'Google Gemini anahtarı şifreli olarak kaydedildi.'
+          ? 'Google Gemini anahtarı kaydedildi.'
           : 'Anahtar kaldırıldı; standart teklif oluşturucu aktif.'
       );
       setTimeout(() => setPitchStatusMessage(null), 4000);
@@ -292,8 +287,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           focus_service: focusService,
           sender_name: senderName.trim() || undefined,
           agency_name: agencyName.trim() || undefined,
-          special_offer: specialOffer.trim() || undefined,
-          custom_instruction: customInstruction.trim() || undefined,
           audit_context: auditResult as unknown as Record<string, unknown>
         },
         activeToken
@@ -301,9 +294,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
       const nextUnifiedMessage = res.whatsapp_pitch || res.email_pitch || '';
       setProposalMessage(nextUnifiedMessage);
-      if (res.email_subject) {
-        setEmailSubject(res.email_subject);
-      }
       setRecommendedPackage(res.recommended_package || '');
       setValuePropositions(res.value_propositions || []);
 
@@ -327,19 +317,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
       setIsGeneratingPitch(false);
     }
   };
-
-  const waUrl = effectivePhone
-    ? `https://wa.me/${formatWhatsAppNumber(effectivePhone)}?text=${encodeURIComponent(
-        proposalMessage ||
-          `Merhaba ${displayName}, işletmenizin internet görünürlüğünü inceledik ve bilgi vermek isteriz.`
-      )}`
-    : null;
-
-  const mailUrl = effectiveEmail
-    ? `mailto:${effectiveEmail}?subject=${encodeURIComponent(
-        emailSubject || `${displayName} - Web Sitesi ve Tanıtım İnceleme Notu`
-      )}&body=${encodeURIComponent(proposalMessage || auditResult.ai_summary || '')}`
-    : null;
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
@@ -435,10 +412,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               agencyName={agencyName}
               onAgencyNameChange={setAgencyName}
               senderEmail={senderEmail}
-              specialOffer={specialOffer}
-              onSpecialOfferChange={setSpecialOffer}
-              customInstruction={customInstruction}
-              onCustomInstructionChange={setCustomInstruction}
               aiConfigured={aiStatus.configured}
               apiKeyInput={apiKeyInput}
               onApiKeyInputChange={setApiKeyInput}
@@ -450,10 +423,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               onProposalMessageChange={setProposalMessage}
               copied={copied}
               onCopyPitch={handleCopyPitch}
-              waUrl={waUrl}
-              mailUrl={mailUrl}
-              effectivePhone={effectivePhone}
-              instagramUrl={socialLinks.instagram}
             />
           ) : mainTab === 'demo_site' && !hasWebsite ? (
             <AuditDemoSiteTab

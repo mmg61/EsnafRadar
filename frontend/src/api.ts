@@ -29,7 +29,8 @@ export const auditMerchant = async (
   website: string | null,
   token: string,
   category?: string,
-  force_refresh: boolean = false
+  force_refresh: boolean = false,
+  phone?: string | null
 ): Promise<AuditResult> => {
   const response = await fetch(`${API_URL}/discovery/audit`, {
     method: 'POST',
@@ -37,7 +38,7 @@ export const auditMerchant = async (
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ osm_id, name, website, category, force_refresh })
+    body: JSON.stringify({ osm_id, name, website, category, force_refresh, phone: phone || undefined })
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

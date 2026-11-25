@@ -42,6 +42,7 @@ async def audit_merchant(
         and existing_merchant
         and existing_merchant.audit_data
         and isinstance(existing_merchant.audit_data, dict)
+        and existing_merchant.audit_data.get("audit_schema_v") == 2
         and "sales_pitch_whatsapp" in existing_merchant.audit_data
         and "cms_platform" in existing_merchant.audit_data
         and "recommended_package" in existing_merchant.audit_data
@@ -63,14 +64,17 @@ async def audit_merchant(
         category=request.category,
         user_gemini_key=plain_user_key,
         sender_name=user_sender,
-        agency_name=user_agency
+        agency_name=user_agency,
+        phone=request.phone,
     )
 
     if existing_merchant:
         existing_merchant.audit_data = audit_result
         existing_merchant.last_scanned_at = now
-        if not existing_merchant.website and audit_result.get("discovered_website"):
+        if audit_result.get("discovered_website"):
             existing_merchant.website = audit_result["discovered_website"]
+        elif not request.website:
+            existing_merchant.website = None
         if not existing_merchant.email and audit_result.get("scraped_emails"):
             existing_merchant.email = audit_result["scraped_emails"][0]
         if not existing_merchant.phone and audit_result.get("scraped_phones"):

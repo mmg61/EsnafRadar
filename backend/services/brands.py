@@ -240,27 +240,78 @@ def _tr_lower(text: str) -> str:
     return text.replace("İ", "i").replace("I", "ı").lower().strip()
 
 
+# Tek kelimelik soyadı veya yaygın Türkçe sözcük olan markalar:
+# "Karaca Kasap", "Mavi Kuaför", "Taç Pide", "PTT Yanı Büfe" gibi yerel esnaflarla çakışmaması için sıkı kontrol uygulanır.
+AMBIGUOUS_SINGLE_WORD_BRANDS: set[str] = {
+    "karaca", "mavi", "taç", "sarar", "network", "mango", "pelit", "koska", "oses",
+    "dagi", "desa", "flo", "ptt", "shell", "opet", "aytemiz", "mondi", "bellona",
+    "istikbal", "doğtaş", "yataş", "chakra", "avva", "suwen", "süvari", "tudors",
+    "vakko", "boyner", "koton", "mado", "tchibo", "bim", "şok", "memorial",
+    "medicana", "medipol", "bosch", "siemens", "profilo", "samsung", "coffy", "ltb",
+}
+
+LOCATION_RELATIVE_WORDS: set[str] = {
+    "karşısı", "karsisi", "yanı", "yani", "arkası", "arkasi",
+    "altı", "alti", "üstü", "ustu", "köşesi", "kosesi",
+    "yakını", "yakini", "durağı", "duragi", "caddesi", "sokağı", "sokagi",
+}
+
+ALLOWED_BRAND_QUALIFIERS: set[str] = {
+    "mağazası", "magazasi", "mağaza", "magaza", "şubesi", "subesi", "şube", "sube",
+    "market", "marketler", "süpermarket", "supermarket", "express", "ekspres", "jet",
+    "istasyonu", "akaryakıt", "akaryakit", "petrol", "kargo", "hastanesi", "hastane",
+    "tıp", "tip", "merkezi", "home", "concept", "classics", "jeans", "collection",
+    "kozmetik", "mobilya", "yatak", "tekstil", "pastanesi", "dondurma", "kahve",
+    "bayii", "bayi", "yetkili",
+}
+
+
 def resolve_known_brand_website(
     name: str,
     brand_tag: Optional[str] = None,
     operator_tag: Optional[str] = None
 ) -> Optional[str]:
     """
-    İşletme adı, brand veya operator etiketine göre bilinen ulusal/küresel
-    bir zincir olup olmadığını kontrol eder ve varsa resmi web adresini döndürür.
+    İşletme adı veya açık OSM `brand` etiketine göre bilinen ulusal/küresel
+    bir zincir olup olmadığını kontrol eder ve yalnızca emin olunduğunda resmi web adresini döndürür.
     """
-    candidates = [c for c in [brand_tag, name, operator_tag] if c and len(c.strip()) > 1]
-
-    for raw in candidates:
-        norm = _tr_lower(raw)
-        # Doğrudan tam eşleşme
-        if norm in KNOWN_BRAND_WEBSITES:
-            return KNOWN_BRAND_WEBSITES[norm]
-
-        # Kelime sınırı ile eşleşme (Örn: "A101 Yeni Mağazacılık", "MM Migros", "Şok Marketler")
+    # 1. Açık OSM brand etiketi varsa (en güvenilir kaynak)
+    if brand_tag and len(brand_tag.strip()) > 1:
+        b_norm = _tr_lower(brand_tag)
+        if b_norm in KNOWN_BRAND_WEBSITES:
+            return KNOWN_BRAND_WEBSITES[b_norm]
         for brand_key, brand_url in KNOWN_BRAND_WEBSITES.items():
             pattern = rf"(?:^|\b|\s){re.escape(brand_key)}(?:\b|\s|$)"
-            if re.search(pattern, norm):
+            if re.search(pattern, b_norm):
                 return brand_url
+
+    if not name or len(name.strip()) <= 1:
+        return None
+
+    norm = _tr_lower(name)
+    tokens = [t for t in re.split(r"[^a-z0-9çğıöşü]+", norm) if t]
+
+    # "PTT Yanı Büfe", "Migros Karşısı Eczane" gibi tarif içeren işletme adlarını ele
+    if any(tok in LOCATION_RELATIVE_WORDS for tok in tokens):
+        return None
+
+    # Doğrudan tam isim eşleşmesi (Örn: "Karaca", "Mavi", "BİM", "Starbucks")
+    if norm in KNOWN_BRAND_WEBSITES:
+        return KNOWN_BRAND_WEBSITES[norm]
+
+    # Kelime sınırı ile eşleşme
+    for brand_key, brand_url in KNOWN_BRAND_WEBSITES.items():
+        pattern = rf"(?:^|\b|\s){re.escape(brand_key)}(?:\b|\s|$)"
+        if not re.search(pattern, norm):
+            continue
+
+        if brand_key in AMBIGUOUS_SINGLE_WORD_BRANDS:
+            brand_tokens = set(re.split(r"[^a-z0-9çğıöşü]+", brand_key))
+            extra_tokens = [t for t in tokens if t not in brand_tokens and not t.isdigit()]
+            # Yanında "Eczanesi", "Kasap", "Kuaför", "Pide" gibi alakasız kelimeler varsa zincir değildir
+            if extra_tokens and not all(t in ALLOWED_BRAND_QUALIFIERS for t in extra_tokens):
+                continue
+
+        return brand_url
 
     return None
