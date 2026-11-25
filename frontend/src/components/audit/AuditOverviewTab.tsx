@@ -58,6 +58,7 @@ export const AuditOverviewTab: React.FC<AuditOverviewTabProps> = ({
 
   const missingCount = checkItems.filter(c => !c.ok).length;
   const opportunities = auditResult.opportunities || [];
+  const hasWebsite = Boolean(effectiveWebsite || auditResult.has_website);
 
   return (
     <div className="space-y-6">
@@ -281,49 +282,51 @@ export const AuditOverviewTab: React.FC<AuditOverviewTabProps> = ({
           )}
         </div>
 
-        <div className="bg-[var(--theme-canvas)] rounded-2xl border border-[var(--theme-border)] overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setShowTechnicalChecklist(!showTechnicalChecklist)}
-            className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[var(--theme-muted)]/30 transition-colors cursor-pointer"
-          >
-            <div>
-              <span className="text-sm font-bold text-[var(--theme-contrast)]">
-                Teknik Web Sitesi Kontrol Tablosu
-              </span>
-              <span className="ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--theme-surface)] text-[var(--theme-contrast)] border border-[var(--theme-border)]">
-                {missingCount} Eksik / {checkItems.length} Kriter
-              </span>
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-primary)]">
-              <span>{showTechnicalChecklist ? 'Gizle' : 'Teknik Detayları Aç'}</span>
-              {showTechnicalChecklist ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </span>
-          </button>
-
-          {showTechnicalChecklist && (
-            <div className="px-6 pb-6 pt-3 border-t border-[var(--theme-border)]">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {checkItems.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="px-4 py-3 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] text-xs flex items-center justify-between"
-                  >
-                    <span className="font-medium text-[var(--theme-contrast)]">{item.label}</span>
-                    <span
-                      className={`inline-flex items-center gap-1.5 font-bold ${
-                        item.ok ? 'text-[var(--theme-primary)]' : 'text-rose-500'
-                      }`}
-                    >
-                      {item.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                      {item.ok ? item.okText : item.failText}
-                    </span>
-                  </div>
-                ))}
+        {hasWebsite && (
+          <div className="bg-[var(--theme-canvas)] rounded-2xl border border-[var(--theme-border)] overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowTechnicalChecklist(!showTechnicalChecklist)}
+              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-[var(--theme-muted)]/30 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-sm font-bold text-[var(--theme-contrast)]">
+                  Web Sitesi Kontrol Tablosu
+                </span>
+                <span className="ml-2 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[var(--theme-surface)] text-[var(--theme-contrast)] border border-[var(--theme-border)]">
+                  {missingCount} Eksik / {checkItems.length} Kriter
+                </span>
               </div>
-            </div>
-          )}
-        </div>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--theme-primary)]">
+                <span>{showTechnicalChecklist ? 'Gizle' : 'Detayları Göster'}</span>
+                {showTechnicalChecklist ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </span>
+            </button>
+
+            {showTechnicalChecklist && (
+              <div className="px-6 pb-6 pt-3 border-t border-[var(--theme-border)]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {checkItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="px-4 py-3 rounded-xl bg-[var(--theme-surface)] border border-[var(--theme-border)] text-xs flex items-center justify-between"
+                    >
+                      <span className="font-medium text-[var(--theme-contrast)]">{item.label}</span>
+                      <span
+                        className={`inline-flex items-center gap-1.5 font-bold ${
+                          item.ok ? 'text-[var(--theme-primary)]' : 'text-rose-500'
+                        }`}
+                      >
+                        {item.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                        {item.ok ? item.okText : item.failText}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
