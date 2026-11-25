@@ -678,7 +678,9 @@ async def run_audit(
     name: str,
     website: str | None,
     category: Optional[str] = None,
-    user_gemini_key: Optional[str] = None
+    user_gemini_key: Optional[str] = None,
+    sender_name: Optional[str] = None,
+    agency_name: Optional[str] = None
 ) -> dict:
     result = {
         "score": 0,
@@ -730,6 +732,8 @@ async def run_audit(
             category=category,
             tone="kurumsal",
             focus_service="auto",
+            sender_name=sender_name,
+            agency_name=agency_name,
             audit_context=res,
             user_gemini_key=user_gemini_key,
         )

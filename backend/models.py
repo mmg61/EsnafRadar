@@ -13,6 +13,7 @@ class User(Base):
     first_name = Column(String)
     last_name = Column(String)
     full_name = Column(String)
+    company_name = Column(String, nullable=True)
     gemini_api_key = Column(String, nullable=True)
     failed_login_attempts = Column(Integer, default=0)
     locked_until = Column(DateTime, nullable=True)

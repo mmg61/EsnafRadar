@@ -9,11 +9,18 @@ import {
   FileText,
   LayoutTemplate
 } from 'lucide-react';
-import { getAiStatus, saveAiConfig, generateCustomPitch, exportAuditPdf, generateDemoSite } from '../api';
+import {
+  getAiStatus,
+  saveAiConfig,
+  generateCustomPitch,
+  exportAuditPdf,
+  generateDemoSite,
+  getUserProfile
+} from '../api';
 import type { AuditResult } from '../types';
 import { normalizeAndDeduplicatePhones, formatWhatsAppNumber } from './audit/phoneUtils';
 import { AuditOverviewTab } from './audit/AuditOverviewTab';
-import { AuditProposalTab, type PitchChannelTab } from './audit/AuditProposalTab';
+import { AuditProposalTab } from './audit/AuditProposalTab';
 import { AuditDemoSiteTab } from './audit/AuditDemoSiteTab';
 
 interface AuditModalProps {
@@ -43,7 +50,6 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const displayName = auditResult.merchantName || auditResult.merchant?.name || 'İşletme';
 
   const [mainTab, setMainTab] = useState<MainModalTab>('overview');
-  const [pitchTab, setPitchTab] = useState<PitchChannelTab>('whatsapp');
   const [copied, setCopied] = useState(false);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -55,6 +61,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [focusService, setFocusService] = useState<string>('auto');
   const [senderName, setSenderName] = useState<string>('');
   const [agencyName, setAgencyName] = useState<string>('');
+  const [senderEmail, setSenderEmail] = useState<string | null>(null);
   const [specialOffer, setSpecialOffer] = useState<string>('');
   const [customInstruction, setCustomInstruction] = useState<string>('');
   const [isGeneratingPitch, setIsGeneratingPitch] = useState<boolean>(false);
@@ -68,20 +75,11 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [isSavingApiKey, setIsSavingApiKey] = useState<boolean>(false);
 
-  const [whatsappPitch, setWhatsappPitch] = useState<string>(() => auditResult.sales_pitch_whatsapp || '');
+  const [proposalMessage, setProposalMessage] = useState<string>(
+    () => auditResult.sales_pitch_whatsapp || auditResult.sales_pitch_email || ''
+  );
   const [emailSubject, setEmailSubject] = useState<string>(
     () => auditResult.sales_pitch_email_subject || `${displayName} - Web Sitesi ve Tanıtım İnceleme Notu`
-  );
-  const [emailPitch, setEmailPitch] = useState<string>(() => auditResult.sales_pitch_email || '');
-  const [instagramPitch, setInstagramPitch] = useState<string>(
-    () =>
-      auditResult.sales_pitch_instagram ||
-      `Merhaba ${displayName}! İşletmenize daha fazla müşteri kazandıracak web sitesi ve harita çalışmamızı paylaşmak isteriz.`
-  );
-  const [coldCallScript, setColdCallScript] = useState<string>(
-    () =>
-      auditResult.sales_pitch_cold_call ||
-      `1. AÇILIŞ: Merhaba, ${displayName} yetkilisi ile mi görüşüyorum?\n2. DURUM: Bölgenizdeki işletmelere bakarken internet sitenizi ve Google Harita kaydınızı inceledik.\n3. ÇÖZÜM: Müşterilerin doğrudan size ulaşmasını sağlayan telefon uyumlu web sitesi ve harita paketimiz var.\n4. KAPANIŞ: Hazırladığımız örnek çalışmayı WhatsApp numaranıza gönderebilir miyim?`
   );
   const [recommendedPackage, setRecommendedPackage] = useState<string>(() => auditResult.recommended_package || '');
   const [valuePropositions, setValuePropositions] = useState<string[]>(() => auditResult.value_propositions || []);
@@ -89,11 +87,24 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   useEffect(() => {
     if (!activeToken) return;
     let cancelled = false;
+
     getAiStatus(activeToken)
       .then(status => {
         if (!cancelled) setAiStatus(status);
       })
       .catch(() => {});
+
+    getUserProfile(activeToken)
+      .then(profile => {
+        if (cancelled) return;
+        const defaultSender =
+          profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+        setSenderName(prev => prev || defaultSender);
+        setAgencyName(prev => prev || profile.company_name || '');
+        setSenderEmail(profile.email || null);
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
@@ -101,6 +112,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   const merchant = auditResult.merchant;
   const effectiveWebsite = auditResult.discovered_website || merchant?.website || null;
+  const hasWebsite = Boolean(effectiveWebsite || auditResult.has_website);
 
   const allPhones: string[] = normalizeAndDeduplicatePhones([
     merchant?.phone,
@@ -130,25 +142,10 @@ export const AuditModal: React.FC<AuditModalProps> = ({
     }
   }
 
-  const getActivePitchText = () => {
-    if (pitchTab === 'whatsapp') return whatsappPitch;
-    if (pitchTab === 'email') return emailPitch;
-    if (pitchTab === 'instagram') return instagramPitch;
-    return coldCallScript;
-  };
-
-  const setActivePitchText = (val: string) => {
-    if (pitchTab === 'whatsapp') setWhatsappPitch(val);
-    else if (pitchTab === 'email') setEmailPitch(val);
-    else if (pitchTab === 'instagram') setInstagramPitch(val);
-    else setColdCallScript(val);
-  };
-
   const handleCopyPitch = async () => {
-    const textToCopy = getActivePitchText();
-    if (!textToCopy) return;
+    if (!proposalMessage) return;
     try {
-      await navigator.clipboard.writeText(textToCopy);
+      await navigator.clipboard.writeText(proposalMessage);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -193,8 +190,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           detected_pain_points: auditResult.detected_pain_points || [],
           opportunities: auditResult.opportunities || [],
           value_propositions: valuePropositions,
-          whatsapp_pitch: whatsappPitch,
-          sales_pitch_whatsapp: whatsappPitch
+          whatsapp_pitch: proposalMessage,
+          sales_pitch_whatsapp: proposalMessage
         },
         activeToken
       );
@@ -208,6 +205,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   };
 
   const handleOpenDemoSite = async () => {
+    if (hasWebsite) return;
     setMainTab('demo_site');
     if (demoSiteHtml || isGeneratingDemoSite || !activeToken) return;
     setIsGeneratingDemoSite(true);
@@ -301,11 +299,11 @@ export const AuditModal: React.FC<AuditModalProps> = ({
         activeToken
       );
 
-      setWhatsappPitch(res.whatsapp_pitch || '');
-      setEmailSubject(res.email_subject || '');
-      setEmailPitch(res.email_pitch || '');
-      setInstagramPitch(res.instagram_dm_pitch || '');
-      setColdCallScript(res.cold_call_script || '');
+      const nextUnifiedMessage = res.whatsapp_pitch || res.email_pitch || '';
+      setProposalMessage(nextUnifiedMessage);
+      if (res.email_subject) {
+        setEmailSubject(res.email_subject);
+      }
       setRecommendedPackage(res.recommended_package || '');
       setValuePropositions(res.value_propositions || []);
 
@@ -315,15 +313,13 @@ export const AuditModal: React.FC<AuditModalProps> = ({
           recommended_package: res.recommended_package,
           detected_pain_points: res.detected_pain_points,
           value_propositions: res.value_propositions,
-          sales_pitch_whatsapp: res.whatsapp_pitch,
+          sales_pitch_whatsapp: nextUnifiedMessage,
           sales_pitch_email_subject: res.email_subject,
-          sales_pitch_email: res.email_pitch,
-          sales_pitch_instagram: res.instagram_dm_pitch,
-          sales_pitch_cold_call: res.cold_call_script
+          sales_pitch_email: nextUnifiedMessage
         });
       }
 
-      setPitchStatusMessage('Teklif metinleri seçtiğiniz ayarlara göre yenilendi.');
+      setPitchStatusMessage('Teklif mesajı seçtiğiniz ayarlara göre yenilendi.');
       setTimeout(() => setPitchStatusMessage(null), 4000);
     } catch (err: unknown) {
       setPitchStatusMessage((err instanceof Error ? err.message : '') || 'Teklif oluşturulurken bir hata oluştu.');
@@ -334,7 +330,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
 
   const waUrl = effectivePhone
     ? `https://wa.me/${formatWhatsAppNumber(effectivePhone)}?text=${encodeURIComponent(
-        whatsappPitch ||
+        proposalMessage ||
           `Merhaba ${displayName}, işletmenizin internet görünürlüğünü inceledik ve bilgi vermek isteriz.`
       )}`
     : null;
@@ -342,7 +338,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
   const mailUrl = effectiveEmail
     ? `mailto:${effectiveEmail}?subject=${encodeURIComponent(
         emailSubject || `${displayName} - Web Sitesi ve Tanıtım İnceleme Notu`
-      )}&body=${encodeURIComponent(emailPitch || auditResult.ai_summary || '')}`
+      )}&body=${encodeURIComponent(proposalMessage || auditResult.ai_summary || '')}`
     : null;
 
   return (
@@ -404,18 +400,20 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             <span>2. Hazır Teklif Mesajı</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleOpenDemoSite}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              mainTab === 'demo_site'
-                ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
-                : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:bg-[var(--theme-muted)] border border-[var(--theme-border)]'
-            }`}
-          >
-            <LayoutTemplate size={16} />
-            <span>3. Örnek Site Taslağı</span>
-          </button>
+          {!hasWebsite && (
+            <button
+              type="button"
+              onClick={handleOpenDemoSite}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                mainTab === 'demo_site'
+                  ? 'bg-[var(--theme-primary)] text-[var(--theme-on-primary)]'
+                  : 'bg-[var(--theme-surface)] text-[var(--theme-contrast)] hover:bg-[var(--theme-muted)] border border-[var(--theme-border)]'
+              }`}
+            >
+              <LayoutTemplate size={16} />
+              <span>3. Örnek Site Taslağı</span>
+            </button>
+          )}
         </div>
 
         <div className="p-7 sm:p-9 space-y-7 overflow-y-auto flex-1">
@@ -426,23 +424,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
             </div>
           )}
 
-          {mainTab === 'overview' ? (
-            <AuditOverviewTab
-              auditResult={auditResult}
-              effectiveWebsite={effectiveWebsite}
-              effectivePhone={effectivePhone}
-              effectiveEmail={effectiveEmail}
-              socialLinks={socialLinks}
-              recommendedPackage={recommendedPackage}
-              copiedItem={copiedItem}
-              onCopyValue={handleCopyValue}
-              onSwitchToProposal={() => setMainTab('proposal')}
-              onOpenDemoSite={handleOpenDemoSite}
-            />
-          ) : mainTab === 'proposal' ? (
+          {mainTab === 'proposal' ? (
             <AuditProposalTab
-              pitchTab={pitchTab}
-              onSelectPitchTab={setPitchTab}
               tone={tone}
               onToneChange={setTone}
               focusService={focusService}
@@ -451,6 +434,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               onSenderNameChange={setSenderName}
               agencyName={agencyName}
               onAgencyNameChange={setAgencyName}
+              senderEmail={senderEmail}
               specialOffer={specialOffer}
               onSpecialOfferChange={setSpecialOffer}
               customInstruction={customInstruction}
@@ -462,10 +446,8 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               onSaveApiKey={handleSaveApiKey}
               isGeneratingPitch={isGeneratingPitch}
               onGenerateAiPitch={handleGenerateAiPitch}
-              emailSubject={emailSubject}
-              onEmailSubjectChange={setEmailSubject}
-              activePitchText={getActivePitchText()}
-              onActivePitchTextChange={setActivePitchText}
+              proposalMessage={proposalMessage}
+              onProposalMessageChange={setProposalMessage}
               copied={copied}
               onCopyPitch={handleCopyPitch}
               waUrl={waUrl}
@@ -473,13 +455,26 @@ export const AuditModal: React.FC<AuditModalProps> = ({
               effectivePhone={effectivePhone}
               instagramUrl={socialLinks.instagram}
             />
-          ) : (
+          ) : mainTab === 'demo_site' && !hasWebsite ? (
             <AuditDemoSiteTab
               merchantName={displayName}
               demoSiteHtml={demoSiteHtml}
               isGeneratingDemoSite={isGeneratingDemoSite}
               onOpenInNewTab={handleOpenDemoInNewTab}
               onDownloadHtml={handleDownloadDemoHtml}
+            />
+          ) : (
+            <AuditOverviewTab
+              auditResult={auditResult}
+              effectiveWebsite={effectiveWebsite}
+              effectivePhone={effectivePhone}
+              effectiveEmail={effectiveEmail}
+              socialLinks={socialLinks}
+              recommendedPackage={recommendedPackage}
+              copiedItem={copiedItem}
+              onCopyValue={handleCopyValue}
+              onSwitchToProposal={() => setMainTab('proposal')}
+              onOpenDemoSite={handleOpenDemoSite}
             />
           )}
         </div>

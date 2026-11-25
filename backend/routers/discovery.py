@@ -51,11 +51,19 @@ async def audit_merchant(
         return existing_merchant.audit_data
 
     plain_user_key = decrypt_secret(current_user.gemini_api_key)
+    user_sender = (
+        current_user.full_name
+        or f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
+        or None
+    )
+    user_agency = current_user.company_name or None
     audit_result = await run_audit(
         name=request.name,
         website=request.website,
         category=request.category,
-        user_gemini_key=plain_user_key
+        user_gemini_key=plain_user_key,
+        sender_name=user_sender,
+        agency_name=user_agency
     )
 
     if existing_merchant:
@@ -112,6 +120,8 @@ async def generate_custom_pitch(
         elif current_user.first_name or current_user.last_name:
             sender_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
 
+    agency_name = request.agency_name or current_user.company_name or None
+
     plain_user_key = decrypt_secret(current_user.gemini_api_key)
     pitch_result = await generate_personalized_pitch(
         merchant_name=request.merchant_name,
@@ -119,7 +129,7 @@ async def generate_custom_pitch(
         tone=request.tone,
         focus_service=request.focus_service,
         sender_name=sender_name,
-        agency_name=request.agency_name,
+        agency_name=agency_name,
         special_offer=request.special_offer,
         custom_instruction=request.custom_instruction,
         audit_context=request.audit_context if isinstance(request.audit_context, dict) else {},

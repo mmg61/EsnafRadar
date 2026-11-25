@@ -16,6 +16,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
   // Form states
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [isUpdatingInfo, setIsUpdatingInfo] = useState(false);
   const [infoSuccess, setInfoSuccess] = useState<string | null>(null);
   const [infoError, setInfoError] = useState<string | null>(null);
@@ -63,6 +64,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
         setProfile(data);
         setFirstName(data.first_name || '');
         setLastName(data.last_name || '');
+        setCompanyName(data.company_name || '');
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -96,7 +98,14 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
 
     setIsUpdatingInfo(true);
     try {
-      const updated = await updateUserProfile({ first_name: firstName.trim(), last_name: lastName.trim() }, token);
+      const updated = await updateUserProfile(
+        {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          company_name: companyName.trim()
+        },
+        token
+      );
       setProfile(updated);
       setInfoSuccess('Profil bilgileriniz başarıyla güncellendi.');
       if (onProfileUpdated && updated.full_name) onProfileUpdated(updated.full_name);
@@ -237,6 +246,18 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ token, onProfi
                     className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-sm text-[var(--theme-contrast)] focus:outline-none focus:border-[var(--theme-primary)]"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1">Firma veya Ekip Adınız</label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  placeholder="Örn: Nova Dijital / Ahmet Yılmaz Web Ekibi"
+                  maxLength={100}
+                  className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-lg px-3 py-2 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
+                />
               </div>
 
               <div>

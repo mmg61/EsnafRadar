@@ -214,3 +214,40 @@ def test_encrypted_per_user_gemini_key_and_account_deletion():
     # Silinen hesapla profil erişimi 401 dönmelidir
     me_after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token_b}"})
     assert me_after.status_code == 401
+
+
+def test_register_and_update_company_name():
+    db = database.SessionLocal()
+    try:
+        db.query(models.RateLimitLog).delete()
+        db.commit()
+    finally:
+        db.close()
+
+    reg = client.post(
+        "/api/auth/register",
+        json={
+            "email": "agency_owner@example.com",
+            "password": "Password123",
+            "first_name": "Mehmet",
+            "last_name": "Kaya",
+            "company_name": "Kaya Dijital Ekibi",
+            "turnstile_token": "dev",
+        },
+    )
+    assert reg.status_code == 200
+    body = reg.json()
+    assert body["company_name"] == "Kaya Dijital Ekibi"
+    token = body["access_token"]
+
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert me.json()["company_name"] == "Kaya Dijital Ekibi"
+
+    upd = client.put(
+        "/api/auth/me",
+        json={"first_name": "Mehmet", "last_name": "Kaya", "company_name": "Kaya Web Atolyesi"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert upd.status_code == 200
+    assert upd.json()["company_name"] == "Kaya Web Atolyesi"

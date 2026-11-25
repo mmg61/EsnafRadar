@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     first_name: Optional[str] = Field(None, max_length=80)
     last_name: Optional[str] = Field(None, max_length=80)
     full_name: Optional[str] = Field(None, max_length=160)
+    company_name: Optional[str] = Field(None, max_length=120)
     turnstile_token: Optional[str] = Field(None, max_length=2048)
 
 class UserResponse(BaseModel):
@@ -17,6 +18,7 @@ class UserResponse(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     full_name: Optional[str] = None
+    company_name: Optional[str] = None
     created_at: datetime
     access_token: Optional[str] = None
     token_type: Optional[str] = "bearer"
@@ -29,6 +31,7 @@ class UserProfileResponse(UserResponse):
 class UserUpdate(BaseModel):
     first_name: Optional[str] = Field(None, max_length=80)
     last_name: Optional[str] = Field(None, max_length=80)
+    company_name: Optional[str] = Field(None, max_length=120)
     current_password: Optional[str] = Field(None, max_length=128)
     new_password: Optional[str] = Field(None, min_length=8, max_length=128)
 

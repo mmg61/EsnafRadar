@@ -16,6 +16,12 @@ COLUMN_MIGRATIONS = [
             ("users", "gemini_api_key", "ALTER TABLE users ADD COLUMN gemini_api_key VARCHAR"),
         ],
     ),
+    (
+        "0004_users_company_name",
+        [
+            ("users", "company_name", "ALTER TABLE users ADD COLUMN company_name VARCHAR"),
+        ],
+    ),
 ]
 
 

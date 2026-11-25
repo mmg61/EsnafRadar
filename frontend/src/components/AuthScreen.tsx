@@ -31,6 +31,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [email, setEmail] = useState<string>(() => localStorage.getItem('remember_email') || '');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -138,7 +139,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         return;
       }
     } else {
-      if (!emailNormalized || !firstName.trim() || !lastName.trim() || !password.trim() || !confirmPassword.trim()) {
+      if (!emailNormalized || !firstName.trim() || !lastName.trim() || !companyName.trim() || !password.trim() || !confirmPassword.trim()) {
         setAuthError('Lütfen bütün bilgileri eksiksiz giriniz.');
         return;
       }
@@ -160,7 +161,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         else localStorage.removeItem('remember_email');
         onAuthSuccess(data.access_token);
       } else {
-        const regData = await registerUser(emailNormalized, password, firstName.trim(), lastName.trim(), turnstileToken || undefined);
+        const regData = await registerUser(
+          emailNormalized,
+          password,
+          firstName.trim(),
+          lastName.trim(),
+          companyName.trim(),
+          turnstileToken || undefined
+        );
         const accessToken = regData.access_token || (await loginUser(emailNormalized, password)).access_token;
         if (rememberMe) localStorage.setItem('remember_email', emailNormalized);
         else localStorage.removeItem('remember_email');
@@ -318,6 +326,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                         setAuthSuccess(null);
                         setFirstName('');
                         setLastName('');
+                        setCompanyName('');
                         setPassword('');
                         setConfirmPassword('');
                       }
@@ -339,6 +348,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                         setAuthSuccess(null);
                         setFirstName('');
                         setLastName('');
+                        setCompanyName('');
                         setPassword('');
                         setConfirmPassword('');
                       }
@@ -380,36 +390,53 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
                 <form onSubmit={handleAuth} className="space-y-4">
                   {!isLogin && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
+                            Ad
+                          </label>
+                          <input
+                            type="text"
+                            autoComplete="given-name"
+                            value={firstName}
+                            onChange={e => { setFirstName(e.target.value); if (authError) setAuthError(null); }}
+                            placeholder="Adınız"
+                            maxLength={50}
+                            className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
+                            Soyad
+                          </label>
+                          <input
+                            type="text"
+                            autoComplete="family-name"
+                            value={lastName}
+                            onChange={e => { setLastName(e.target.value); if (authError) setAuthError(null); }}
+                            placeholder="Soyadınız"
+                            maxLength={50}
+                            className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
+                          />
+                        </div>
+                      </div>
+
                       <div>
                         <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
-                          Ad
+                          Firma veya Ekip Adı
                         </label>
                         <input
                           type="text"
-                          autoComplete="given-name"
-                          value={firstName}
-                          onChange={e => { setFirstName(e.target.value); if (authError) setAuthError(null); }}
-                          placeholder="Adınız"
-                          maxLength={50}
+                          autoComplete="organization"
+                          value={companyName}
+                          onChange={e => { setCompanyName(e.target.value); if (authError) setAuthError(null); }}
+                          placeholder="Örn: Nova Dijital / Ahmet Yılmaz Web Ekibi"
+                          maxLength={100}
                           className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-[var(--theme-contrast)] mb-1.5">
-                          Soyad
-                        </label>
-                        <input
-                          type="text"
-                          autoComplete="family-name"
-                          value={lastName}
-                          onChange={e => { setLastName(e.target.value); if (authError) setAuthError(null); }}
-                          placeholder="Soyadınız"
-                          maxLength={50}
-                          className="w-full bg-[var(--theme-canvas)] border border-[var(--theme-border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--theme-contrast)] placeholder-[var(--theme-contrast)]/45 focus:outline-none focus:border-[var(--theme-primary)]"
-                        />
-                      </div>
-                    </div>
+                    </>
                   )}
 
                   <div>

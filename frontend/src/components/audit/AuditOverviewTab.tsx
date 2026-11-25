@@ -162,17 +162,21 @@ export const AuditOverviewTab: React.FC<AuditOverviewTabProps> = ({
             İnternet Sitesi
           </span>
 
-          {effectiveWebsite ? (
+          {hasWebsite ? (
             <div className="space-y-2">
-              <a
-                href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] break-all"
-              >
-                <span className="line-clamp-1">{effectiveWebsite.replace(/^https?:\/\//, '')}</span>
-                <ExternalLink size={14} className="shrink-0" />
-              </a>
+              {effectiveWebsite ? (
+                <a
+                  href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--theme-contrast)] hover:text-[var(--theme-primary)] break-all"
+                >
+                  <span className="line-clamp-1">{effectiveWebsite.replace(/^https?:\/\//, '')}</span>
+                  <ExternalLink size={14} className="shrink-0" />
+                </a>
+              ) : (
+                <p className="text-sm font-bold text-[var(--theme-contrast)]">Site Aktif</p>
+              )}
               <p className="text-xs text-[var(--theme-contrast)]/70">
                 {auditResult.cms_platform ? `Altyapı: ${auditResult.cms_platform}` : 'Site aktif durumda'}
               </p>

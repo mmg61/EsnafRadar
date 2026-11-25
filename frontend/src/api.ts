@@ -112,6 +112,7 @@ export const registerUser = async (
   password: string,
   firstName: string,
   lastName: string,
+  companyName: string,
   turnstileToken?: string
 ) => {
   const response = await fetch(`${API_URL}/auth/register`, {
@@ -123,6 +124,7 @@ export const registerUser = async (
       first_name: firstName,
       last_name: lastName,
       full_name: `${firstName} ${lastName}`.trim(),
+      company_name: companyName || undefined,
       turnstile_token: turnstileToken
     })
   });
@@ -194,7 +196,13 @@ export const getUserProfile = async (token: string): Promise<UserProfile> => {
 };
 
 export const updateUserProfile = async (
-  data: { first_name?: string; last_name?: string; current_password?: string; new_password?: string },
+  data: {
+    first_name?: string;
+    last_name?: string;
+    company_name?: string;
+    current_password?: string;
+    new_password?: string;
+  },
   token: string
 ): Promise<UserProfile> => {
   const response = await fetch(`${API_URL}/auth/me`, {

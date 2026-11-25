@@ -109,6 +109,7 @@ export interface UserProfile {
   first_name?: string;
   last_name?: string;
   full_name?: string;
+  company_name?: string | null;
   created_at: string;
   saved_leads_count: number;
 }

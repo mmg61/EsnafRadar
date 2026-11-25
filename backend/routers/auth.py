@@ -107,12 +107,14 @@ async def register_user(user: schemas.UserCreate, request: Request, db: Session 
 
     hashed_password = auth.get_password_hash(user.password)
     full_name = f"{first_name_clean} {last_name_clean}".strip()
+    company_name_clean = (user.company_name or "").strip() or None
     new_user = models.User(
         email=email_clean,
         hashed_password=hashed_password,
         first_name=first_name_clean,
         last_name=last_name_clean,
         full_name=full_name,
+        company_name=company_name_clean,
         failed_login_attempts=0
     )
     db.add(new_user)
@@ -132,6 +134,7 @@ async def register_user(user: schemas.UserCreate, request: Request, db: Session 
         "first_name": new_user.first_name,
         "last_name": new_user.last_name,
         "full_name": new_user.full_name,
+        "company_name": new_user.company_name,
         "created_at": new_user.created_at,
         "access_token": access_token,
         "token_type": "bearer"
@@ -203,6 +206,7 @@ def read_users_me(
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
         "full_name": current_user.full_name or f"{current_user.first_name or ''} {current_user.last_name or ''}".strip(),
+        "company_name": current_user.company_name,
         "created_at": current_user.created_at,
         "saved_leads_count": saved_count,
     }
@@ -218,6 +222,8 @@ def update_user_profile(
         current_user.first_name = user_update.first_name.strip()
     if user_update.last_name is not None:
         current_user.last_name = user_update.last_name.strip()
+    if user_update.company_name is not None:
+        current_user.company_name = user_update.company_name.strip() or None
 
     current_user.full_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip()
 
@@ -243,6 +249,7 @@ def update_user_profile(
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
         "full_name": current_user.full_name,
+        "company_name": current_user.company_name,
         "created_at": current_user.created_at,
         "saved_leads_count": saved_count,
     }
