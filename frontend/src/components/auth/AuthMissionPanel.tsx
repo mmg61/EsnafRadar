@@ -1,15 +1,11 @@
 import React from 'react';
-import { Users, MapPin, Globe, Layers } from 'lucide-react';
+import { Users, MapPin, Globe } from 'lucide-react';
 
 export const AuthMissionPanel: React.FC = () => {
   return (
-    <div className="relative z-10 lg:w-[46%] bg-[var(--theme-hero-bg)] text-[var(--theme-hero-text)] border-b lg:border-b-0 lg:border-r border-[var(--theme-border)] p-8 lg:p-14 flex flex-col justify-between order-2 lg:order-1">
-      <div className="flex-1 flex flex-col justify-center max-w-lg mx-auto w-full py-6">
+    <div className="relative z-10 lg:w-[46%] bg-[var(--theme-hero-bg)] text-[var(--theme-hero-text)] border-b lg:border-b-0 lg:border-r border-[var(--theme-border)] p-8 lg:p-14 flex flex-col justify-center order-2 lg:order-1">
+      <div className="flex flex-col justify-center max-w-lg mx-auto w-full py-6">
         <div className="text-center flex flex-col items-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--theme-primary)] border border-white/20 text-[var(--theme-on-primary)] text-xs font-semibold mb-5">
-            <Layers size={14} />
-            <span>Coğrafi Konum Tabanlı Dijital Denetim ve CRM</span>
-          </div>
           <h2 className="text-2xl lg:text-3xl font-bold text-[var(--theme-hero-text)] leading-snug tracking-tight">
             Yerel İşletmelerin Dijital Varlıklarını Analiz Edin ve Satış Süreçlerini Yönetin
           </h2>
@@ -51,17 +47,6 @@ export const AuthMissionPanel: React.FC = () => {
               İncelenen işletmeleri müşteri aday listesine kaydedin, satış aşamalarını güncelleyin ve doğrudan kurumsal iletişim başlatın.
             </p>
           </div>
-        </div>
-      </div>
-
-      <div className="pt-5 border-t border-white/15 flex flex-wrap items-center justify-center sm:justify-between gap-4 text-xs text-[var(--theme-hero-text)]/80 max-w-lg mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
-          <span className="font-medium">Overpass Keşif Motoru: Aktif</span>
-        </div>
-        <div className="flex items-center gap-4 text-[11px] text-[var(--theme-hero-text)]/75">
-          <span>Web Denetleyici: Hazır</span>
-          <span>JWT &amp; Turnstile Koruması</span>
         </div>
       </div>
     </div>
