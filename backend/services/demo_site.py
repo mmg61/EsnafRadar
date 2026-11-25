@@ -7,84 +7,85 @@ from services.auditor import _normalize_tr_phone
 
 def _resolve_sector_profile(category_text: str) -> Tuple[str, str, str, str, List[Tuple[str, str]]]:
     """
-    Sektöre göre (Renk Kodu, Vurgu Rengi, Ana Slogan, Alt Açıklama, 3 Hizmet Kartı) döndürür.
+    Sektöre göre göz yormayan, sakin ve kurumsal:
+    (Ana Vurgu Rengi, Yumuşak Yüzey Rengi, Kısa Başlık, Kısa Alt Metin, 3 Sade Hizmet Kartı) döndürür.
     """
     c = (category_text or "").lower()
 
-    if any(k in c for k in ["restoran", "lokanta", "kafe", "kahve", "fırın", "pastane", "tatlı", "food", "cafe", "restaurant", "bakery", "burger", "dürüm"]):
+    if any(k in c for k in ["restoran", "lokanta", "kafe", "kahve", "fırın", "pastane", "tatlı", "food", "cafe", "restaurant", "bakery", "burger", "dürüm", "pide", "kebap"]):
         return (
-            "#d97706",
-            "#fef3c7",
-            "Günlük Taze Lezzetler ve Sıcak Atmosfer",
-            "Özenle seçilen malzemelerle hazırlanan menümüzü keşfedin. Masa rezervasyonu veya paket sipariş için bize hemen ulaşabilirsiniz.",
+            "#854d0e",
+            "#f5f2eb",
+            "Özenli Mutfak, Günlük Taze Lezzetler",
+            "Kaliteli malzemelerle hazırlanan menümüz, samimi ortamımız ve hızlı servisimizle hizmetinizdeyiz.",
             [
-                ("Günlük Taze Üretim", "Mutfağımızda tüm ürünlerimiz her gün taze ve hijyenik koşullarda hazırlanmaktadır."),
-                ("Hızlı Paket Servis", "Sıcak ve özenli paketleme ile siparişlerinizi adresinize hızlıca ulaştırıyoruz."),
-                ("Aileye Uygun Mekan", "Ferah oturma alanımız ve güler yüzlü ekibimizle misafirlerimizi ağırlıyoruz."),
+                ("Günlük Hazırlık", "Tüm ürünlerimiz her sabah taze malzemelerle özenle hazırlanır."),
+                ("Mekan ve Paket Servis", "İster yerinde keyifle tüketin, ister sıcak paket sipariş verin."),
+                ("Kolay Rezervasyon", "Grup yemekleri ve özel günler için telefonla yerinizi ayırtın."),
             ],
         )
 
     if any(k in c for k in ["kuaför", "berber", "güzellik", "bakım", "spa", "hair", "beauty", "barber"]):
         return (
-            "#db2777",
-            "#fce7f3",
-            "Profesyonel Saç ve Kişisel Bakım Hizmetleri",
-            "Size özel stil danışmanlığı, modern kesim teknikleri ve hijyenik bakım uygulamaları için randevunuzu hemen oluşturun.",
+            "#5b3e5c",
+            "#f4eff4",
+            "Kişiye Özel Saç ve Bakım Uygulamaları",
+            "Hijyenik ortamda, yüz ve saç yapınıza uygun modern kesim ve bakım hizmetleri sunuyoruz.",
             [
-                ("Randevulu Hizmet", "Beklemeden, size ayrılan özel saatte konforlu bakım hizmeti sunuyoruz."),
-                ("Uzman Kadro", "Alanında deneyimli ekibimizle yüz ve saç tipinize en uygun uygulamaları yapıyoruz."),
-                ("Kaliteli Ürünler", "Cildinize ve saçınıza zarar vermeyen seçkin bakım ürünleri kullanıyoruz."),
+                ("Planlı Randevu", "Beklemeden, size ayrılan saatte sakin ve özenli hizmet alın."),
+                ("Deneyimli Ekip", "Stilinize en uygun kesim ve bakım uygulamalarını birlikte belirliyoruz."),
+                ("Seçkin Ürünler", "Saç ve cilt sağlığını koruyan güvenilir ürünlerle çalışıyoruz."),
             ],
         )
 
     if any(k in c for k in ["oto", "tamir", "servis", "yıkama", "lastik", "yedek parça", "car", "auto", "tyre"]):
         return (
-            "#2563eb",
-            "#dbeafe",
-            "Güvenilir Oto Bakım, Onarım ve Servis Çözümleri",
-            "Aracınızın periyodik bakımı, arıza tespiti ve yedek parça ihtiyaçlarında uzman işçilik ve şeffaf fiyat anlayışıyla yanınızdayız.",
+            "#1e3a5f",
+            "#eef2f6",
+            "Güvenilir Oto Bakım ve Servis Hizmeti",
+            "Aracınızın bakım, onarım ve kontrol işlemlerinde şeffaf bilgilendirme ve titiz işçilik sunuyoruz.",
             [
-                ("Hızlı Arıza Tespiti", "Deneyimli ustalarımız ve modern ekipmanlarımızla sorunu kısa sürede belirliyoruz."),
-                ("Garantili İşçilik", "Yapılan tüm bakım ve onarım işlemlerinde güvenli sürüş standartlarını koruyoruz."),
-                ("Şeffaf Bilgilendirme", "İşlem öncesinde yapılacak uygulamaları ve maliyeti net şekilde paylaşıyoruz."),
+                ("Doğru Arıza Tespiti", "Sorunu hızlıca belirleyip işlem öncesi net bilgi paylaşıyoruz."),
+                ("Titiz İşçilik", "Aracınızın güvenliği için standartlara uygun bakım uyguluyoruz."),
+                ("Zamanında Teslim", "Planlanan sürede işlemleri tamamlayarak aracınızı teslim ediyoruz."),
             ],
         )
 
     if any(k in c for k in ["eczane", "diş", "klinik", "doktor", "veteriner", "sağlık", "medikal", "optik", "health", "dentist", "pharmacy"]):
         return (
-            "#0d9488",
-            "#ccfbf1",
-            "Sağlığınız İçin Güvenilir ve Uzman Yaklaşım",
-            "Modern donanımımız, hijyenik ortamımız ve güler yüzlü uzman ekibimizle sağlığınız için yanınızdayız.",
+            "#1f5c58",
+            "#edf4f3",
+            "Uzman Kadro ve Güvenilir Sağlık Yaklaşımı",
+            "Modern donanımımız ve steril çalışma düzenimizle ihtiyaçlarınıza özenli çözümler üretiyoruz.",
             [
-                ("Kolay Randevu", "Telefon veya WhatsApp üzerinden dakikalar içinde randevu ve bilgi alabilirsiniz."),
-                ("Hijyenik ve Modern Ortam", "Tüm süreçlerimiz güncel sağlık ve sterilizasyon standartlarına uygundur."),
-                ("Hasta Odaklı İlgi", "İhtiyaçlarınızı dinliyor, size en uygun çözüm sürecini anlaşılır şekilde planlıyoruz."),
+                ("Hızlı Bilgilendirme", "Telefon veya mesaj yoluyla kolayca bilgi ve randevu alabilirsiniz."),
+                ("Steril Ortam", "Tüm süreçlerimiz güncel hijyen kurallarına titizlikle uygun yürütülür."),
+                ("Birebir İlgi", "Sürecin her adımını anlaşılır ve şeffaf biçimde sizinle paylaşıyoruz."),
             ],
         )
 
     if any(k in c for k in ["otel", "pansiyon", "apart", "konaklama", "hotel", "turizm"]):
         return (
-            "#4f46e5",
-            "#e0e7ff",
-            "Konforlu, Temiz ve Huzurlu Konaklama Deneyimi",
-            "Şehrin merkezinde ev sıcaklığında odalarımız ve 7/24 resepsiyon desteğimizle misafirlerimizi ağırlamaktan mutluluk duyarız.",
+            "#37474f",
+            "#eef1f2",
+            "Sakin, Temiz ve Konforlu Konaklama",
+            "Merkezi konumda, özenle hazırlanmış odalarımızla huzurlu bir konaklama deneyimi sunuyoruz.",
             [
-                ("Merkezi Konum", "Ulaşım noktalarına ve şehrin önemli merkezlerine kolay erişim imkanı."),
-                ("Günlük Oda Temizliği", "Odalarımız her misafirimiz için titizlikle hazırlanır ve havalandırılır."),
-                ("Doğrudan Rezervasyon Avantajı", "Aracı komisyonu olmadan telefon veya WhatsApp ile en uygun fiyatı alın."),
+                ("Merkezi Ulaşım", "Şehrin ana noktalarına ve toplu ulaşıma yakın konum."),
+                ("Özenli Temizlik", "Odalarımız her konaklama öncesi detaylı olarak hazırlanır."),
+                ("Doğrudan İletişim", "Aracısız bilgi ve rezervasyon için bize doğrudan ulaşabilirsiniz."),
             ],
         )
 
     return (
-        "#059669",
-        "#d1fae5",
-        "Kaliteli Ürün, Güvenilir Esnaf ve Hızlı İletişim",
-        "Bölgemizde yıllardır süren tecrübemiz, uygun fiyatlarımız ve müşteri memnuniyeti odaklı hizmetimizle yanınızdayız.",
+        "#27364b",
+        "#eff2f5",
+        "Güvenilir Hizmet ve Doğrudan İletişim",
+        "Bölgemizdeki tecrübemiz, dürüst esnaflık anlayışımız ve ulaşılabilir ekibimizle yanınızdayız.",
         [
-            ("Güvenilir Hizmet", "Müşteri memnuniyetini her zaman ilk sırada tutan yerel işletme anlayışı."),
-            ("Hızlı İletişim", "Ürün ve fiyat bilgisi için WhatsApp veya telefon hattımızdan anında yanıt alın."),
-            ("Kolay Ulaşım", "Merkezi konumumuzdaki iş yerimize uğrayabilir veya haritadan yol tarifi alabilirsiniz."),
+            ("Kaliteli Hizmet", "Müşteri memnuniyetini esas alan özenli ve temiz çalışma düzeni."),
+            ("Doğrudan İletişim", "Sorularınız ve talepleriniz için bize tek tıkla ulaşabilirsiniz."),
+            ("Kolay Ulaşım", "Harita konumu üzerinden iş yerimize zahmetsizce yol tarifi alın."),
         ],
     )
 
@@ -93,16 +94,19 @@ def generate_demo_site_html(payload: Dict[str, Any]) -> str:
     raw_name = str(payload.get("merchant_name") or "Yerel İşletme").strip()
     raw_category = str(payload.get("category") or "Yerel İşletme").strip()
     raw_phone = payload.get("phone")
-    normalized_phone = (_normalize_tr_phone(str(raw_phone)) or str(raw_phone).strip()) if raw_phone else "0500 000 00 00"
+    has_real_phone = bool(raw_phone and str(raw_phone).strip())
+    normalized_phone = (_normalize_tr_phone(str(raw_phone)) or str(raw_phone).strip()) if has_real_phone else ""
     digits = re.sub(r"\D", "", normalized_phone)
-    wa_digits = ("9" + digits) if digits.startswith("0") else (digits if digits.startswith("90") else "90" + digits)
+    wa_digits = ("9" + digits) if digits.startswith("0") else (digits if digits.startswith("90") else ("90" + digits if digits else ""))
 
     raw_email = str(payload.get("email") or "").strip()
     raw_address = str(payload.get("address") or "").strip()
     if not raw_address or raw_address == "Adres detayı belirtilmemiş":
-        raw_address = "Merkez Mahallesi, İşletme Sokak No:1 (Haritadan Yol Tarifi Alabilirsiniz)"
+        display_address = "Harita üzerinden tam konumu görüntüleyebilirsiniz."
+    else:
+        display_address = raw_address
 
-    raw_hours = str(payload.get("opening_hours") or "").strip() or "Pazartesi - Cumartesi: 09:00 - 20:00"
+    raw_hours = str(payload.get("opening_hours") or "").strip() or "Pazartesi – Cumartesi • 09:00 – 20:00"
     raw_insta = str(payload.get("instagram") or "").strip()
 
     lat = payload.get("latitude")
@@ -112,358 +116,443 @@ def generate_demo_site_html(payload: Dict[str, Any]) -> str:
     else:
         maps_url = f"https://www.google.com/maps/search/?api=1&query={quote(raw_name + ' ' + raw_address)}"
 
-    wa_msg = quote(f"Merhaba {raw_name}, web siteniz üzerinden bilgi almak için yazıyorum.")
-    wa_url = f"https://wa.me/{wa_digits}?text={wa_msg}"
-    tel_url = f"tel:{normalized_phone.replace(' ', '')}"
+    wa_msg = quote(f"Merhaba {raw_name}, bilgi almak için yazıyorum.")
+    wa_url = f"https://wa.me/{wa_digits}?text={wa_msg}" if wa_digits else "#iletisim"
+    tel_url = f"tel:{normalized_phone.replace(' ', '')}" if normalized_phone else "#iletisim"
 
-    primary, light_bg, hero_title, hero_sub, services = _resolve_sector_profile(raw_category)
+    accent, accent_soft, hero_title, hero_sub, services = _resolve_sector_profile(raw_category)
 
     name_esc = html.escape(raw_name)
+    initial_esc = html.escape((raw_name[0] if raw_name else "İ").upper())
     cat_esc = html.escape(raw_category)
-    phone_esc = html.escape(normalized_phone)
+    phone_esc = html.escape(normalized_phone) if normalized_phone else "Telefon bilgisi eklenecek"
     email_esc = html.escape(raw_email)
-    addr_esc = html.escape(raw_address)
+    addr_esc = html.escape(display_address)
     hours_esc = html.escape(raw_hours)
 
     service_cards_html = ""
-    for idx, (s_title, s_desc) in enumerate(services, start=1):
+    for s_title, s_desc in services:
         service_cards_html += f"""
-        <div class="card">
-          <div class="card-num">0{idx}</div>
+        <div class="service-card">
+          <div class="service-dot"></div>
           <h3>{html.escape(s_title)}</h3>
           <p>{html.escape(s_desc)}</p>
         </div>
         """
 
-    email_row_html = (
-        f'<div class="info-item"><strong>E-posta:</strong> <a href="mailto:{email_esc}">{email_esc}</a></div>'
-        if raw_email
-        else ""
+    primary_cta_html = (
+        f'<a href="{wa_url}" target="_blank" rel="noreferrer" class="btn btn-solid">İletişime Geç</a>'
+        if wa_digits
+        else '<a href="#iletisim" class="btn btn-solid">İletişim Bilgileri</a>'
     )
 
-    insta_clean = raw_insta.replace("https://instagram.com/", "").replace("https://www.instagram.com/", "").strip("/@ ")
-    insta_url = raw_insta if raw_insta.startswith("http") else f"https://instagram.com/{insta_clean}"
-    insta_row_html = (
-        f'<div class="info-item"><strong>Instagram:</strong> <a href="{html.escape(insta_url)}" target="_blank" rel="noreferrer">@{html.escape(insta_clean or raw_name)}</a></div>'
-        if raw_insta
-        else ""
+    header_cta_html = (
+        f'<a href="{tel_url}" class="nav-cta">{phone_esc}</a>'
+        if normalized_phone
+        else '<a href="#iletisim" class="nav-cta">Bize Ulaşın</a>'
     )
+
+    extra_links_html = ""
+    if raw_email:
+        extra_links_html += f'<div class="meta-row"><span class="meta-label">E-posta</span><a href="mailto:{email_esc}" class="meta-val link">{email_esc}</a></div>'
+    if raw_insta:
+        insta_clean = raw_insta.replace("https://instagram.com/", "").replace("https://www.instagram.com/", "").strip("/@ ")
+        insta_url = raw_insta if raw_insta.startswith("http") else f"https://instagram.com/{insta_clean}"
+        extra_links_html += f'<div class="meta-row"><span class="meta-label">Instagram</span><a href="{html.escape(insta_url)}" target="_blank" rel="noreferrer" class="meta-val link">@{html.escape(insta_clean or raw_name)}</a></div>'
 
     return f"""<!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{name_esc} | {cat_esc}</title>
-  <meta name="description" content="{name_esc} - {html.escape(hero_title)}. İletişim: {phone_esc}" />
+  <title>{name_esc} — {cat_esc}</title>
+  <meta name="description" content="{name_esc} - {html.escape(hero_title)}" />
   <style>
     :root {{
-      --primary: {primary};
-      --primary-light: {light_bg};
-      --dark: #0f172a;
-      --slate: #475569;
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --border: #e2e8f0;
+      --canvas: #f6f5f2;
+      --surface: #ffffff;
+      --subtle: {accent_soft};
+      --ink: #1c1917;
+      --muted: #57534e;
+      --soft: #78716c;
+      --border: #e7e5e0;
+      --accent: {accent};
     }}
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    html {{ scroll-behavior: smooth; }}
     body {{
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--dark);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--canvas);
+      color: var(--ink);
       line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }}
-    .demo-banner {{
-      background: #0f172a;
-      color: #e2e8f0;
-      text-align: center;
-      padding: 8px 16px;
-      font-size: 12px;
-      border-bottom: 2px solid var(--primary);
+    .wrap {{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 24px;
     }}
-    .demo-banner strong {{ color: #34d399; }}
+
+    /* Üst Menü */
     header {{
-      background: var(--card);
+      background: rgba(246, 245, 242, 0.92);
+      backdrop-filter: blur(8px);
       border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
-      z-index: 50;
+      z-index: 20;
     }}
-    .container {{
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 0 20px;
-    }}
-    .nav {{
+    .topbar {{
+      height: 68px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px 0;
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 16px;
     }}
     .brand {{
       display: flex;
-      flex-direction: column;
-    }}
-    .brand-name {{
-      font-size: 20px;
-      font-weight: 800;
-      color: var(--dark);
-      letter-spacing: -0.3px;
-    }}
-    .brand-cat {{
-      font-size: 12px;
-      color: var(--primary);
-      font-weight: 600;
-    }}
-    .nav-actions {{
-      display: flex;
-      gap: 10px;
       align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }}
+    .monogram {{
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }}
+    .brand-title {{
+      font-size: 16px;
+      font-weight: 650;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+    .nav-right {{
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+    }}
+    .nav-link {{
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 500;
+    }}
+    .nav-link:hover {{ color: var(--ink); }}
+    .nav-cta {{
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: background 0.15s ease;
+    }}
+    .nav-cta:hover {{ background: var(--subtle); }}
+
+    /* Ana Karşılama Kartı */
+    .hero-section {{
+      padding: 36px 0 28px;
+    }}
+    .hero-card {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 44px;
+      display: grid;
+      grid-template-columns: 1.25fr 0.85fr;
+      gap: 36px;
+      align-items: center;
+    }}
+    .eyebrow {{
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--subtle);
+      padding: 5px 12px;
+      border-radius: 999px;
+      margin-bottom: 18px;
+    }}
+    .hero-card h1 {{
+      font-size: clamp(24px, 3.2vw, 34px);
+      line-height: 1.25;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      margin-bottom: 14px;
+    }}
+    .hero-lead {{
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 460px;
+      margin-bottom: 26px;
+    }}
+    .actions {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }}
     .btn {{
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 10px 18px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 700;
+      padding: 11px 20px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 600;
       text-decoration: none;
-      transition: transform 0.15s ease, opacity 0.15s ease;
+      transition: opacity 0.15s ease;
     }}
-    .btn:hover {{ transform: translateY(-1px); opacity: 0.95; }}
-    .btn-primary {{
-      background: var(--primary);
+    .btn:hover {{ opacity: 0.9; }}
+    .btn-solid {{
+      background: var(--accent);
       color: #ffffff;
     }}
-    .btn-wa {{
-      background: #16a34a;
-      color: #ffffff;
-    }}
-    .btn-outline {{
-      background: #ffffff;
-      color: var(--dark);
+    .btn-ghost {{
+      background: var(--canvas);
+      color: var(--ink);
       border: 1px solid var(--border);
     }}
-    .hero {{
-      padding: 64px 0 56px;
-      background: var(--primary-light);
-      border-bottom: 1px solid var(--border);
-    }}
-    .hero-badge {{
-      display: inline-block;
-      background: #ffffff;
-      color: var(--primary);
-      border: 1px solid var(--border);
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }}
-    .hero h1 {{
-      font-size: clamp(28px, 4.5vw, 44px);
-      line-height: 1.2;
-      font-weight: 800;
-      margin-bottom: 16px;
-      color: var(--dark);
-    }}
-    .hero p {{
-      font-size: 17px;
-      color: var(--slate);
-      max-width: 680px;
-      margin-bottom: 28px;
-    }}
-    .hero-cta {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }}
-    .section {{
-      padding: 56px 0;
-    }}
-    .section-title {{
-      font-size: 24px;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }}
-    .section-sub {{
-      color: var(--slate);
-      font-size: 14px;
-      margin-bottom: 28px;
-    }}
-    .grid {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 20px;
-    }}
-    .card {{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-    }}
-    .card-num {{
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--primary);
-      background: var(--primary-light);
-      padding: 4px 10px;
-      border-radius: 8px;
-      margin-bottom: 12px;
-    }}
-    .card h3 {{
-      font-size: 18px;
-      margin-bottom: 8px;
-    }}
-    .card p {{
-      color: var(--slate);
-      font-size: 14px;
-    }}
-    .contact-box {{
-      background: var(--card);
+
+    /* Sağ Özet Kutusu */
+    .summary-panel {{
+      background: var(--canvas);
       border: 1px solid var(--border);
       border-radius: 18px;
-      padding: 28px;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 24px;
-      align-items: center;
-    }}
-    .info-list {{
+      padding: 24px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }}
-    .info-item {{
-      font-size: 15px;
-      color: var(--slate);
+    .summary-item {{
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
     }}
-    .info-item strong {{
-      color: var(--dark);
-      display: inline-block;
-      min-width: 120px;
+    .summary-item:last-child {{
+      padding-bottom: 0;
+      border-bottom: none;
     }}
-    .info-item a {{
-      color: var(--primary);
-      text-decoration: none;
+    .summary-label {{
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--soft);
       font-weight: 600;
     }}
-    .map-card {{
-      background: var(--bg);
-      border: 1px dashed var(--border);
-      border-radius: 14px;
+    .summary-value {{
+      font-size: 13.5px;
+      color: var(--ink);
+      font-weight: 550;
+    }}
+
+    /* Hizmetler */
+    .services-section {{
+      padding: 16px 0 28px;
+    }}
+    .section-head {{
+      margin-bottom: 18px;
+    }}
+    .section-head h2 {{
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+    }}
+    .services-grid {{
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }}
+    .service-card {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
       padding: 24px;
-      text-align: center;
     }}
-    .map-card h4 {{
-      font-size: 16px;
-      margin-bottom: 8px;
+    .service-dot {{
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-bottom: 14px;
     }}
-    .map-card p {{
-      font-size: 13px;
-      color: var(--slate);
-      margin-bottom: 16px;
+    .service-card h3 {{
+      font-size: 15px;
+      font-weight: 650;
+      margin-bottom: 6px;
+      color: var(--ink);
     }}
-    footer {{
-      background: var(--dark);
-      color: #94a3b8;
-      text-align: center;
-      padding: 28px 20px;
-      font-size: 13px;
-      margin-top: 20px;
+    .service-card p {{
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.55;
     }}
-    .float-wa {{
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #16a34a;
-      color: #fff;
-      padding: 12px 18px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: 14px;
+
+    /* İletişim Bölümü */
+    .contact-section {{
+      padding: 8px 0 40px;
+    }}
+    .contact-card {{
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }}
+    .meta-grid {{
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }}
+    .meta-row {{
+      display: flex;
+      gap: 12px;
+      font-size: 13.5px;
+      flex-wrap: wrap;
+    }}
+    .meta-label {{
+      color: var(--soft);
+      min-width: 110px;
+      font-weight: 500;
+    }}
+    .meta-val {{
+      color: var(--ink);
+      font-weight: 550;
+    }}
+    .meta-val.link {{
+      color: var(--accent);
       text-decoration: none;
-      box-shadow: 0 8px 24px rgba(22, 163, 74, 0.35);
-      z-index: 99;
+    }}
+
+    footer {{
+      border-top: 1px solid var(--border);
+      padding: 20px 0 28px;
+      font-size: 12px;
+      color: var(--soft);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }}
+
+    @media (max-width: 760px) {{
+      .nav-link {{ display: none; }}
+      .hero-card {{
+        grid-template-columns: 1fr;
+        padding: 28px 22px;
+        gap: 24px;
+      }}
+      .services-grid {{
+        grid-template-columns: 1fr;
+      }}
+      .contact-card {{
+        padding: 22px;
+      }}
     }}
   </style>
 </head>
 <body>
-  <div class="demo-banner">
-    Bu sayfa <strong>{name_esc}</strong> için hazırlanmış <strong>Örnek Web Sitesi Taslağıdır</strong>. Telefon ve bilgisayar uyumludur.
-  </div>
-
   <header>
-    <div class="container nav">
+    <div class="wrap topbar">
       <div class="brand">
-        <span class="brand-name">{name_esc}</span>
-        <span class="brand-cat">{cat_esc}</span>
+        <div class="monogram">{initial_esc}</div>
+        <span class="brand-title">{name_esc}</span>
       </div>
-      <div class="nav-actions">
-        <a href="{tel_url}" class="btn btn-outline">Ara: {phone_esc}</a>
-        <a href="{wa_url}" target="_blank" rel="noreferrer" class="btn btn-wa">WhatsApp İletişim</a>
+      <div class="nav-right">
+        <a href="#hizmetler" class="nav-link">Hizmetler</a>
+        <a href="#iletisim" class="nav-link">İletişim</a>
+        {header_cta_html}
       </div>
     </div>
   </header>
 
-  <section class="hero">
-    <div class="container">
-      <span class="hero-badge">{cat_esc} • Resmi Tanıtım Sayfası</span>
-      <h1>{name_esc}<br />{html.escape(hero_title)}</h1>
-      <p>{html.escape(hero_sub)}</p>
-      <div class="hero-cta">
-        <a href="{wa_url}" target="_blank" rel="noreferrer" class="btn btn-wa">WhatsApp'tan Bilgi / Randevu Al</a>
-        <a href="{tel_url}" class="btn btn-primary">Hemen Ara ({phone_esc})</a>
-        <a href="{maps_url}" target="_blank" rel="noreferrer" class="btn btn-outline">Haritada Yol Tarifi Al</a>
-      </div>
-    </div>
-  </section>
+  <main class="wrap">
+    <section class="hero-section">
+      <div class="hero-card">
+        <div>
+          <span class="eyebrow">{cat_esc}</span>
+          <h1>{html.escape(hero_title)}</h1>
+          <p class="hero-lead">{html.escape(hero_sub)}</p>
+          <div class="actions">
+            {primary_cta_html}
+            <a href="{maps_url}" target="_blank" rel="noreferrer" class="btn btn-ghost">Haritada Yol Tarifi</a>
+          </div>
+        </div>
 
-  <section class="section">
-    <div class="container">
-      <h2 class="section-title">Neden {name_esc}?</h2>
-      <p class="section-sub">Müşterilerimize sunduğumuz başlıca hizmet ve ayrıcalıklar</p>
-      <div class="grid">
+        <div class="summary-panel">
+          <div class="summary-item">
+            <span class="summary-label">Çalışma Saatleri</span>
+            <span class="summary-value">{hours_esc}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Telefon</span>
+            <span class="summary-value">{phone_esc}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Konum</span>
+            <span class="summary-value">{addr_esc}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="hizmetler" class="services-section">
+      <div class="section-head">
+        <h2>Hizmet Anlayışımız</h2>
+      </div>
+      <div class="services-grid">
         {service_cards_html}
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" style="padding-top: 0;">
-    <div class="container">
-      <h2 class="section-title">İletişim ve Ulaşım Bilgileri</h2>
-      <p class="section-sub">Bize aşağıdaki kanallardan doğrudan ulaşabilir veya iş yerimizi ziyaret edebilirsiniz.</p>
-      <div class="contact-box">
-        <div class="info-list">
-          <div class="info-item"><strong>İşletme Adı:</strong> {name_esc}</div>
-          <div class="info-item"><strong>Sektör:</strong> {cat_esc}</div>
-          <div class="info-item"><strong>Telefon:</strong> <a href="{tel_url}">{phone_esc}</a></div>
-          {email_row_html}
-          {insta_row_html}
-          <div class="info-item"><strong>Çalışma Saatleri:</strong> {hours_esc}</div>
-          <div class="info-item"><strong>Adres:</strong> {addr_esc}</div>
+    <section id="iletisim" class="contact-section">
+      <div class="contact-card">
+        <div class="meta-grid">
+          <div class="meta-row">
+            <span class="meta-label">İşletme</span>
+            <span class="meta-val">{name_esc}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Telefon</span>
+            <span class="meta-val">{phone_esc}</span>
+          </div>
+          {extra_links_html}
+          <div class="meta-row">
+            <span class="meta-label">Adres</span>
+            <span class="meta-val">{addr_esc}</span>
+          </div>
         </div>
-        <div class="map-card">
-          <h4>Konum ve Yol Tarifi</h4>
-          <p>{addr_esc}</p>
-          <a href="{maps_url}" target="_blank" rel="noreferrer" class="btn btn-primary">Google Haritalar'da Aç</a>
-        </div>
+
+        <a href="{maps_url}" target="_blank" rel="noreferrer" class="btn btn-ghost">Haritada Aç</a>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <footer>
-    <div class="container">
-      &copy; 2026 <strong>{name_esc}</strong> — Tüm Hakları Saklıdır.
-    </div>
-  </footer>
-
-  <a href="{wa_url}" target="_blank" rel="noreferrer" class="float-wa">WhatsApp ile Yazın</a>
+    <footer>
+      <span>© 2026 {name_esc}</span>
+      <span>{cat_esc}</span>
+    </footer>
+  </main>
 </body>
-</html>"""
+</html>
+"""
