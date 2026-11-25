@@ -286,3 +286,60 @@ def test_website_accuracy_prevents_brand_and_directory_false_positives():
 
     # Tek kelimelik kör alan adı tahminleri üretilmemelidir
     assert "yildiz" not in _build_compound_domain_slugs("Yıldız Kuaför")
+
+
+def test_category_matcher_compares_merchant_and_website_categories():
+    from bs4 import BeautifulSoup
+    from services.category_matcher import verify_website_matches_merchant_category
+
+    # 1. Kuaför işletmesi için Oto Servis sitesi reddedilmelidir ("bakım" kelimesi geçse bile!)
+    auto_html = """
+    <html>
+      <head><title>Yıldız Otomotiv - Oto Servis, Periyodik Bakım ve Yedek Parça</title></head>
+      <body><h1>Yıldız Oto Tamir ve Mekanik Servis</h1><p>Motor bakım, fren ve şanzıman onarımı.</p></body>
+    </html>
+    """
+    ok_wrong_auto, dom_auto, _ = verify_website_matches_merchant_category(
+        "Kuaför & Berber", "Yıldız Kuaför", BeautifulSoup(auto_html, "html.parser"), strict=True
+    )
+    assert ok_wrong_auto is False
+    assert dom_auto == "auto"
+
+    # 2. Diş kliniği için "dışında" kelimesi geçen emlak sitesi reddedilmelidir (Türkçe i/ı ve kelime sınırı koruması)
+    estate_html = """
+    <html>
+      <head><title>Moda Gayrimenkul ve Emlak Danışmanlığı</title></head>
+      <body><h1>Satılık ve Kiralık Daire Portföyü</h1><p>Pazar günleri dışında hizmetinizdeyiz.</p></body>
+    </html>
+    """
+    ok_wrong_estate, dom_est, _ = verify_website_matches_merchant_category(
+        "Diş Kliniği / Diş Hekimi", "Moda Diş Kliniği", BeautifulSoup(estate_html, "html.parser"), strict=True
+    )
+    assert ok_wrong_estate is False
+    assert dom_est == "real_estate"
+
+    # 3. Gerçek Kuaför sitesi Kuaför işletmesiyle doğrulanmalıdır
+    salon_html = """
+    <html>
+      <head><title>Yıldız Kuaför & Güzellik Salonu | Saç Tasarım</title></head>
+      <body><h1>Kadıköy Saç Kesim, Ombre ve Gelin Başı</h1><p>Randevu ve iletişim için arayın.</p></body>
+    </html>
+    """
+    ok_right_salon, dom_salon, _ = verify_website_matches_merchant_category(
+        "Kuaför & Berber", "Yıldız Kuaför", BeautifulSoup(salon_html, "html.parser"), strict=True
+    )
+    assert ok_right_salon is True
+    assert dom_salon == "beauty"
+
+    # 4. Haritada kayıtlı (OSM) eski restoran alan adı düşüp hukuk bürosuna geçmişse strict=False modda bile elenmelidir
+    law_html = """
+    <html>
+      <head><title>Kaya Hukuk Bürosu | Avukatlık ve Danışmanlık</title></head>
+      <body><h1>Ceza Hukuku, Ticaret Hukuku ve İcra Davaları</h1></body>
+    </html>
+    """
+    ok_hijacked_osm, dom_law, _ = verify_website_matches_merchant_category(
+        "Restoran & Lokanta", "Kaya Kebap Salonu", BeautifulSoup(law_html, "html.parser"), strict=False
+    )
+    assert ok_hijacked_osm is False
+    assert dom_law == "legal"

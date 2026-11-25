@@ -14,6 +14,7 @@ from google import genai
 from pydantic import BaseModel
 from typing import List, Optional
 from services.brands import resolve_known_brand_website
+from services.category_matcher import verify_website_matches_merchant_category
 
 load_dotenv()
 
@@ -219,6 +220,10 @@ DIRECTORY_BLACKLIST = {
     "zomato.com", "harita.gov.tr", "turkiye.gov.tr", "etbis.gov.tr", "rehber.com",
     "firmarehberi.com", "turkcebilgi.com", "hurriyet.com.tr", "milliyet.com.tr", "sabah.com.tr",
     "haberturk.com", "sozcu.com.tr", "cumhuriyet.com.tr", "ntv.com.tr", "cnn.com", "onedio.com",
+    "eczaneler.gen.tr", "eczanebul.net", "nobetcieczane.com", "ilacrehberi.com",
+    "firmasec.com", "turkfirmarehberi.com", "sirketlerrehberi.com", "sektorel.com",
+    "turkticaret.net", "sanayirehberi.com", "kobirehberi.com", "esnafrehberi.com",
+    "tiklagelsin.com", "fuudy.co", "moovitapp.com", "waze.com", "openstreetmap.org", "wikimapia.org",
 }
 
 
@@ -499,6 +504,11 @@ _PARKED_OR_INVALID_MARKERS = (
 )
 
 
+def _has_whole_token(token_ascii: str, text_ascii: str) -> bool:
+    """'ali' kelimesinin 'kaliteli' içinde eşleşmesini önleyen kelime başlangıcı sınırı kontrolü."""
+    return bool(re.search(rf"(?:^|[^a-z0-9]){re.escape(token_ascii)}", text_ascii))
+
+
 async def _verify_candidate_belongs_to_merchant(
     candidate_url: str,
     name: str,
@@ -507,9 +517,9 @@ async def _verify_candidate_belongs_to_merchant(
     headers: dict[str, str],
 ) -> Optional[str]:
     """
-    Aday web sayfasını indirir ve gerçekten aranan yerel işletmeye ait olup olmadığını
-    başlık, H1, sektör uyumu, Türkçe içerik ve telefon numarası üzerinden doğrular.
-    Şüpheli veya alakasız sitelerde None döndürerek yanlış web sitesi atanmasını engeller.
+    Aday web sayfasını indirir; önce işletme kategorisi ile web sitesinin kategorisini karşılaştırır,
+    ardından işletme adı (tam kelime sınırı ile), Türkçe içerik ve telefon uyumunu doğrular.
+    Kategorisi uyuşmayan siteler kesin olarak reddedilir.
     """
     if not _is_safe_public_url(candidate_url):
         return None
@@ -533,6 +543,17 @@ async def _verify_candidate_belongs_to_merchant(
                 return None
 
             soup = BeautifulSoup(html_sample, "html.parser")
+
+            # ZORUNLU ADIM 1: İşletme kategorisi ile web sitesinin kategorisi örtüşmelidir!
+            cat_ok, _, _ = verify_website_matches_merchant_category(
+                merchant_category=category,
+                merchant_name=name,
+                soup=soup,
+                strict=True,
+            )
+            if not cat_ok:
+                return None
+
             title_txt = soup.title.string.strip() if (soup.title and soup.title.string) else ""
             h1_el = soup.find("h1")
             h1_txt = h1_el.get_text(" ", strip=True) if h1_el else ""
@@ -547,18 +568,9 @@ async def _verify_candidate_belongs_to_merchant(
             body_ascii = body_visible.replace("İ", "i").replace("I", "ı").lower().translate(_ASCII_TR_MAP)
             domain_clean = final_domain.split(".")[0].replace("-", "")
 
-            distinctive_tokens, sector_tokens = _extract_merchant_identity_tokens(name, category)
+            distinctive_tokens, _ = _extract_merchant_identity_tokens(name, category)
 
-            # 1. Telefon numarası eşleşmesi (en kesin doğrulama)
-            if merchant_phone:
-                target_digits = re.sub(r"\D", "", merchant_phone)[-10:]
-                if len(target_digits) == 10:
-                    page_digits_blob = re.sub(r"\D", "", html_sample)
-                    if target_digits in page_digits_blob:
-                        if not distinctive_tokens or any(t in header_ascii or t in domain_clean for t in distinctive_tokens):
-                            return f"{final_parsed.scheme}://{final_parsed.netloc}"
-
-            # Türkçe site / yerel işletme sinyali kontrolü (Yabancı dildeki global siteleri eler)
+            # ZORUNLU ADIM 2: Türkçe içerik / yerel işletme sinyali
             has_turkish_signal = (
                 final_domain.endswith(".tr")
                 or any(ch in (header_raw + body_visible[:4000]) for ch in "çğıöşüÇĞİÖŞÜ")
@@ -567,28 +579,30 @@ async def _verify_candidate_belongs_to_merchant(
             if not has_turkish_signal:
                 return None
 
+            # ZORUNLU ADIM 3: Kategori doğrulandıktan sonra telefon VEYA tam kelime işletme adı eşleşmesi
+            if merchant_phone:
+                target_digits = re.sub(r"\D", "", merchant_phone)[-10:]
+                if len(target_digits) == 10:
+                    page_digits_blob = re.sub(r"\D", "", html_sample)
+                    if target_digits in page_digits_blob:
+                        if not distinctive_tokens or any(
+                            _has_whole_token(t, header_ascii) or t in domain_clean for t in distinctive_tokens
+                        ):
+                            return f"{final_parsed.scheme}://{final_parsed.netloc}"
+
             if not distinctive_tokens:
                 return None
 
-            # 2. En az 2 ayırt edici isim kelimesi varsa (Örn: "Moda Akdeniz Veteriner")
             if len(distinctive_tokens) >= 2:
                 must_match = distinctive_tokens[:2]
-                if all(tok in header_ascii or tok in domain_clean for tok in must_match):
-                    if not sector_tokens or any(st in header_ascii or st in body_ascii for st in sector_tokens):
-                        return f"{final_parsed.scheme}://{final_parsed.netloc}"
+                if all(_has_whole_token(tok, header_ascii) or tok in domain_clean for tok in must_match):
+                    return f"{final_parsed.scheme}://{final_parsed.netloc}"
                 return None
 
-            # 3. Tek ayırt edici kelime varsa (Örn: "Yıldız Kuaför"):
-            # "Yıldız Holding" veya başka sektördeki "Yıldız" firmalarıyla karışmaması için
-            # hem alan adında hem sayfa başlığında ayırt edici kelime VE sektör kelimesi birlikte geçmelidir.
             single_tok = distinctive_tokens[0]
-            if len(single_tok) < 4 or not sector_tokens:
+            if len(single_tok) < 4:
                 return None
-            if (
-                single_tok in domain_clean
-                and single_tok in header_ascii
-                and any(st in header_ascii for st in sector_tokens)
-            ):
+            if single_tok in domain_clean and _has_whole_token(single_tok, header_ascii):
                 return f"{final_parsed.scheme}://{final_parsed.netloc}"
 
             return None
@@ -869,7 +883,7 @@ async def run_audit(
             website = None
 
     result = {
-        "audit_schema_v": 2,
+        "audit_schema_v": 3,
         "score": 0,
         "ssl_valid": False,
         "mobile_ready": False,
@@ -1014,6 +1028,49 @@ async def run_audit(
         # 2. Derin Teknik, CMS ve SEO Analizi
         soup = BeautifulSoup(html_content, "html.parser")
         html_lower = html_content.lower()
+
+        # Park edilmiş, satılık veya işletme kategorisiyle uyuşmayan siteleri reddet
+        is_invalid_or_parked = (
+            (result["http_status"] is not None and result["http_status"] >= 400)
+            or any(marker in html_lower[:45000] for marker in _PARKED_OR_INVALID_MARKERS)
+        )
+        if not is_invalid_or_parked and not result.get("is_corporate_chain"):
+            cat_strict_ok, _, _ = verify_website_matches_merchant_category(
+                merchant_category=category,
+                merchant_name=name,
+                soup=soup,
+                strict=True,
+            )
+            if not cat_strict_ok:
+                cat_loose_ok, _, _ = verify_website_matches_merchant_category(
+                    merchant_category=category,
+                    merchant_name=name,
+                    soup=soup,
+                    strict=False,
+                )
+                # Sitenin kategorisi başka bir sektöre aitse kesinlikle bu işletmeye ait değildir
+                if not cat_loose_ok or result.get("website_source") != "osm":
+                    is_invalid_or_parked = True
+                else:
+                    # Kategori belirsizse en azından başlıkta işletme adının tam kelime geçmesini şart koş
+                    t_raw = (soup.title.string if (soup.title and soup.title.string) else "") + " " + (
+                        soup.find("h1").get_text(" ", strip=True) if soup.find("h1") else ""
+                    )
+                    t_ascii = t_raw.replace("İ", "i").replace("I", "ı").lower().translate(_ASCII_TR_MAP)
+                    dist_toks, _ = _extract_merchant_identity_tokens(name, category)
+                    if not dist_toks or not all(_has_whole_token(dt, t_ascii) for dt in dist_toks[:2]):
+                        is_invalid_or_parked = True
+
+        if is_invalid_or_parked:
+            result["has_website"] = False
+            result["discovered_website"] = None
+            result["ssl_valid"] = False
+            result["http_status"] = None
+            result["response_time_ms"] = None
+            result["crawled_pages"] = []
+            _build_smart_fallback_analysis(name, category, result)
+            await _attach_ai_pitches(result)
+            return result
 
         result["cms_platform"] = _detect_cms_platform(html_lower, soup)
 

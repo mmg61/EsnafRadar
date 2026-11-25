@@ -42,7 +42,7 @@ async def audit_merchant(
         and existing_merchant
         and existing_merchant.audit_data
         and isinstance(existing_merchant.audit_data, dict)
-        and existing_merchant.audit_data.get("audit_schema_v") == 2
+        and existing_merchant.audit_data.get("audit_schema_v") == 3
         and "sales_pitch_whatsapp" in existing_merchant.audit_data
         and "cms_platform" in existing_merchant.audit_data
         and "recommended_package" in existing_merchant.audit_data
